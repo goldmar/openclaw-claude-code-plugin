@@ -22,3 +22,19 @@ export function assertBranchName(value: unknown): asserts value is string {
   const error = branchNameValidationError(value);
   if (error) throw new Error(error);
 }
+
+/** Read-only ancestry checks may compare a local branch with a computed remote-tracking ref. */
+export function assertBranchOrRemoteTrackingRef(value: unknown): asserts value is string {
+  if (typeof value === "string" && value.startsWith("refs/remotes/")) {
+    try {
+      execFileSync("git", ["check-ref-format", value], {
+        timeout: 5_000,
+        stdio: ["ignore", "ignore", "ignore"],
+      });
+      return;
+    } catch {
+      throw new Error("Expected a valid literal Git branch or remote-tracking ref.");
+    }
+  }
+  assertBranchName(value);
+}

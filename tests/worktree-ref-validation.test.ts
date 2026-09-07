@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertBranchName, branchNameValidationError } from "../src/worktree-ref-validation";
+import { assertBranchName, assertBranchOrRemoteTrackingRef, branchNameValidationError } from "../src/worktree-ref-validation";
 import { branchExists, deleteBranch, fetchRemoteBranchRef, getAheadBehindCounts, getDiffSummary, mergeBranch, pushBranch } from "../src/worktree";
 import { makeAgentLaunchTool } from "../src/tools/agent-launch";
 import { makeAgentMergeTool } from "../src/tools/agent-merge";
@@ -23,6 +23,12 @@ describe("literal worktree ref boundary", () => {
     for (const value of ["main", "feature/security-fix", "release/2026.9"]) {
       assert.equal(branchNameValidationError(value), undefined);
     }
+  });
+
+  it("permits computed remote-tracking refs only at read-only comparison boundaries", () => {
+    assert.doesNotThrow(() => assertBranchOrRemoteTrackingRef("refs/remotes/origin/main"));
+    assert.throws(() => assertBranchOrRemoteTrackingRef("refs/heads/main"), /literal Git branch/);
+    assert.throws(() => assertBranchOrRemoteTrackingRef("refs/tags/v1"), /literal Git branch/);
   });
 
   it("rejects direct tool calls before session resolution or launch", async () => {

@@ -1,4 +1,4 @@
-import { assertBranchName } from "./worktree-ref-validation";
+import { assertBranchName, assertBranchOrRemoteTrackingRef } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import { tmpdir } from "os";
@@ -272,8 +272,8 @@ export function getAheadBehindCounts(
 }
 
 export function isBranchAncestorOfBase(repoDir: string, branch: string, base: string): boolean {
-  assertBranchName(branch);
-  assertBranchName(base);
+  assertBranchOrRemoteTrackingRef(branch);
+  assertBranchOrRemoteTrackingRef(base);
 
   try {
     execFileSync(
