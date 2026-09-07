@@ -125,7 +125,7 @@ describe("plugin entry source", () => {
       overrides?: Record<string, string>;
     };
 
-    assert.equal(packageJson.dependencies?.["fast-uri"], "3.1.6");
+    assert.equal(packageJson.dependencies?.["fast-uri"], "3.1.7");
     assert.equal(packageJson.dependencies?.hono, "4.12.34");
     assert.equal(packageJson.dependencies?.["ip-address"], "10.7.0");
     assert.equal(packageJson.dependencies?.qs, "6.16.0");
