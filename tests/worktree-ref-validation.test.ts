@@ -20,7 +20,7 @@ describe("literal worktree ref boundary", () => {
 
   it("rejects options, revision syntax, malformed refs and nonstring runtime input", () => {
     for (const value of invalid) assert.throws(() => assertBranchName(value), /literal Git branch|valid literal/);
-    for (const value of ["main", "feature/security-fix", "release/2026.9"]) {
+    for (const value of ["main", "feature/security-fix", "release/2026.9", "refs/feature", "refs/feature/topic", "refs/heads-up"]) {
       assert.equal(branchNameValidationError(value), undefined);
     }
   });
@@ -58,6 +58,38 @@ describe("literal worktree ref boundary", () => {
     assert.throws(() => getDiffSummary(missingRepo, "main", "--output=sentinel"), /literal Git branch/);
     assert.throws(() => getAheadBehindCounts(missingRepo, "main", "main~1"), /valid literal/);
     assert.throws(() => prepareSessionBootstrap({ worktreeBaseBranch: "--exec=command" } as any, "test", () => undefined), /literal Git branch/);
+  });
+
+  it("merges refs-prefixed local branches without accepting full refs or detaching HEAD", () => {
+    const repo = mkdtempSync(join(tmpdir(), "oca-local-refs-"));
+    const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    try {
+      git("init", "-b", "refs/base");
+      git("config", "user.name", "Test");
+      git("config", "user.email", "test@example.com");
+      git("commit", "--allow-empty", "-m", "base");
+      const base = git("rev-parse", "HEAD");
+      git("checkout", "-b", "refs/feature");
+      writeFileSync(join(repo, "file"), "change");
+      git("add", "file");
+      git("commit", "-m", "change");
+      const head = git("rev-parse", "HEAD");
+      git("update-ref", "refs/remotes/origin/main", base);
+      git("tag", "v1", base);
+      for (const fullRef of ["refs/heads/refs/base", "refs/remotes/origin/main", "refs/tags/v1"]) {
+        assert.throws(() => mergeBranch(repo, "refs/feature", fullRef), /literal Git branch/);
+        assert.equal(git("symbolic-ref", "HEAD"), "refs/heads/refs/feature");
+        assert.equal(git("rev-parse", "HEAD"), head);
+        assert.equal(git("rev-parse", "refs/heads/refs/base"), base);
+      }
+      git("checkout", "refs/base");
+      assert.equal(branchExists(repo, "refs/feature"), true);
+      assert.equal(mergeBranch(repo, "refs/feature", "refs/base").success, true);
+      assert.equal(git("symbolic-ref", "HEAD"), "refs/heads/refs/base");
+      assert.equal(git("rev-parse", "refs/heads/refs/base"), head);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 
   it("merges a valid slash branch with cwd metacharacters without shell interpretation", () => {

@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 
-/** Local branch names only: never full refs, command options, or revision expressions. */
+/** Local branch names only: reject standard full-ref namespaces, options, and revisions. */
 export function branchNameValidationError(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value || value.startsWith("-") || value.startsWith("refs/") || value === "HEAD" || value === "@" || /\s|[\x00-\x1f\x7f]/u.test(value)) {
+  if (typeof value !== "string" || !value || value.startsWith("-") || /^refs\/(?:heads|remotes|tags)\//u.test(value) || value === "HEAD" || value === "@" || /\s|[\x00-\x1f\x7f]/u.test(value)) {
     return "Expected a literal Git branch name (local branch only; not a full ref, option, or revision expression).";
   }
   try {
