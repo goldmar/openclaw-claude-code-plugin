@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertBranchName, assertBranchOrRemoteTrackingRef, branchNameValidationError } from "../src/worktree-ref-validation";
-import { branchExists, deleteBranch, fetchRemoteBranchRef, getAheadBehindCounts, getDiffSummary, mergeBranch, pushBranch } from "../src/worktree";
+import { branchExists, deleteBranch, fetchRemoteBranchRef, getAheadBehindCounts, getDiffSummary, getCommitsAheadCount, isBranchAncestorOfBase, wouldMergeBeNoop, mergeBranch, pushBranch } from "../src/worktree";
 import { makeAgentLaunchTool } from "../src/tools/agent-launch";
 import { makeAgentMergeTool } from "../src/tools/agent-merge";
 import { makeAgentPrTool } from "../src/tools/agent-pr";
@@ -74,8 +74,18 @@ describe("literal worktree ref boundary", () => {
       git("add", "file");
       git("commit", "-m", "change");
       const head = git("rev-parse", "HEAD");
+      git("update-ref", "refs/feature", base);
+      git("update-ref", "refs/base", head);
+      git("update-ref", "refs/shadow-only", base);
       git("update-ref", "refs/remotes/origin/main", base);
       git("tag", "v1", base);
+      assert.equal(branchExists(repo, "refs/shadow-only"), false);
+      assert.deepEqual(getAheadBehindCounts(repo, "refs/feature", "refs/base"), { ahead: 1, behind: 0 });
+      assert.equal(getCommitsAheadCount(repo, "refs/feature", "refs/base"), 1);
+      assert.equal(getDiffSummary(repo, "refs/feature", "refs/base")?.commits, 1);
+      assert.equal(isBranchAncestorOfBase(repo, "refs/base", "refs/feature"), true);
+      assert.equal(isBranchAncestorOfBase(repo, "refs/feature", "refs/base"), false);
+      assert.equal(wouldMergeBeNoop(repo, "refs/feature", "refs/base"), false);
       for (const fullRef of ["refs/heads/refs/base", "refs/remotes/origin/main", "refs/tags/v1"]) {
         assert.throws(() => mergeBranch(repo, "refs/feature", fullRef), /literal Git branch/);
         assert.equal(git("symbolic-ref", "HEAD"), "refs/heads/refs/feature");
@@ -87,6 +97,16 @@ describe("literal worktree ref boundary", () => {
       assert.equal(mergeBranch(repo, "refs/feature", "refs/base").success, true);
       assert.equal(git("symbolic-ref", "HEAD"), "refs/heads/refs/base");
       assert.equal(git("rev-parse", "refs/heads/refs/base"), head);
+      assert.equal(git("rev-parse", "refs/feature"), base);
+      // A local bare remote exercises refspec resolution without network access.
+      const remote = join(repo, "remote.git");
+      git("init", "--bare", remote);
+      git("remote", "add", "origin", remote);
+      assert.equal(pushBranch(repo, "refs/feature"), true);
+      assert.equal(git("--git-dir", remote, "rev-parse", "refs/heads/refs/feature"), head);
+      git("--git-dir", remote, "update-ref", "refs/feature", base);
+      assert.equal(fetchRemoteBranchRef(repo, "refs/feature"), "refs/remotes/origin/refs/feature");
+      assert.equal(git("rev-parse", "refs/remotes/origin/refs/feature"), head);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

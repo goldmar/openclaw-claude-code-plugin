@@ -23,6 +23,12 @@ export function assertBranchName(value: unknown): asserts value is string {
   if (error) throw new Error(error);
 }
 
+/** Fully qualify a validated local branch anywhere Git performs revision lookup. */
+export function localBranchRef(value: unknown): string {
+  assertBranchName(value);
+  return `refs/heads/${value}`;
+}
+
 /** Read-only ancestry checks may compare a local branch with a computed remote-tracking ref. */
 export function assertBranchOrRemoteTrackingRef(value: unknown): asserts value is string {
   if (typeof value === "string" && value.startsWith("refs/remotes/")) {
@@ -37,4 +43,10 @@ export function assertBranchOrRemoteTrackingRef(value: unknown): asserts value i
     }
   }
   assertBranchName(value);
+}
+
+/** Qualify local branches while preserving validated, internally computed remote refs. */
+export function branchOrRemoteTrackingRef(value: unknown): string {
+  assertBranchOrRemoteTrackingRef(value);
+  return value.startsWith("refs/remotes/") ? value : localBranchRef(value);
 }

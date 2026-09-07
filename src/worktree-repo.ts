@@ -1,4 +1,4 @@
-import { assertBranchName, assertBranchOrRemoteTrackingRef } from "./worktree-ref-validation";
+import { assertBranchName, branchOrRemoteTrackingRef, localBranchRef } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import { tmpdir } from "os";
@@ -112,7 +112,7 @@ export function branchExists(repoDir: string, branchName: string): boolean {
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", branchName],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef(branchName)],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -130,7 +130,7 @@ export function fetchRemoteBranchRef(repoDir: string, branchName: string, remote
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "fetch", remote, `+${branchName}:${remoteRef}`],
+      ["-C", repoDir, "fetch", remote, `+${localBranchRef(branchName)}:${remoteRef}`],
       { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     execFileSync(
@@ -188,7 +188,7 @@ export function detectDefaultBranch(repoDir: string): string {
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", "main"],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef("main")],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return "main";
@@ -199,7 +199,7 @@ export function detectDefaultBranch(repoDir: string): string {
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", "master"],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef("master")],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return "master";
@@ -233,7 +233,7 @@ export function getCommitsAheadCount(repoDir: string, branch: string, base: stri
   try {
     const result = execFileSync(
       "git",
-      ["-C", repoDir, "rev-list", "--count", `${base}..${branch}`],
+      ["-C", repoDir, "rev-list", "--count", `${localBranchRef(base)}..${localBranchRef(branch)}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const count = parseInt(result.trim(), 10);
@@ -258,7 +258,7 @@ export function getAheadBehindCounts(
   try {
     const result = execFileSync(
       "git",
-      ["-C", repoDir, "rev-list", "--left-right", "--count", `${branch}...${base}`],
+      ["-C", repoDir, "rev-list", "--left-right", "--count", `${localBranchRef(branch)}...${localBranchRef(base)}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     const [aheadRaw, behindRaw] = result.split(/\s+/);
@@ -272,13 +272,13 @@ export function getAheadBehindCounts(
 }
 
 export function isBranchAncestorOfBase(repoDir: string, branch: string, base: string): boolean {
-  assertBranchOrRemoteTrackingRef(branch);
-  assertBranchOrRemoteTrackingRef(base);
+  const branchRef = branchOrRemoteTrackingRef(branch);
+  const baseRef = branchOrRemoteTrackingRef(base);
 
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "merge-base", "--is-ancestor", branch, base],
+      ["-C", repoDir, "merge-base", "--is-ancestor", branchRef, baseRef],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -294,12 +294,12 @@ export function wouldMergeBeNoop(repoDir: string, branch: string, base: string):
   try {
     const mergedTree = execFileSync(
       "git",
-      ["-C", repoDir, "merge-tree", "--write-tree", base, branch],
+      ["-C", repoDir, "merge-tree", "--write-tree", localBranchRef(base), localBranchRef(branch)],
       { timeout: 15_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     const baseTree = execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", `${base}^{tree}`],
+      ["-C", repoDir, "rev-parse", `${localBranchRef(base)}^{tree}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     return Boolean(mergedTree) && mergedTree === baseTree;
