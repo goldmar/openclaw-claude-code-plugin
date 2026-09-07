@@ -2618,7 +2618,7 @@ describe("SessionManager turn-end wake", () => {
     );
   });
 
-  it("keeps very large routine plans bounded instead of dumping the raw plan", async () => {
+  it("preserves validation details throughout large numbered plans", async () => {
     const longPlanItems = Array.from({ length: 90 }, (_, index) =>
       `${index + 1}. Step ${index + 1}: capture a distinct part of the approval review, keep the wording explicit for users, preserve enough detail for a usable decision, and include validation notes so the finalized plan is intentionally larger than the full-plan pagination budget.`,
     );
@@ -2651,10 +2651,11 @@ describe("SessionManager turn-end wake", () => {
     assert.equal(calls.length, 1);
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
-    assert.ok((request.userMessage ?? "").length <= 3_200);
-    assert.match(request.userMessage, /Full-plan detail:/);
-    assert.doesNotMatch(request.userMessage, /Step 90:/);
-    assert.deepEqual(request.buttons.map((row: Array<{ label: string }>) => row.map((button) => button.label)), [["Approve", "Revise", "Reject"]]);
+    assert.equal(request.userMessage, undefined);
+    assert.ok(request.userMessages.every((message: { text: string }) => message.text.length <= 3_000));
+    assert.match(request.userMessages.map((message: { text: string }) => message.text).join("\n"), /Step 90:/);
+    assert.equal(request.userMessages.filter((message: { buttons?: unknown }) => message.buttons).length, 1);
+    assert.deepEqual(request.userMessages.at(-1).buttons.map((row: Array<{ label: string }>) => row.map((button) => button.label)), [["Approve", "Revise", "Reject"]]);
   });
 
   it("uses the plan file for the original ask-mode approval prompt when no structured artifact is cached", async () => {
@@ -2771,7 +2772,9 @@ describe("SessionManager turn-end wake", () => {
     assert.match(request.userMessage, /Decision brief/);
     assert.match(request.userMessage, /Objective \/ scope:/);
     assert.match(request.userMessage, /preserve approval ownership/);
-    assert.match(request.userMessage, /Implementation approach:/);
+    assert.doesNotMatch(request.userMessage, /Implementation approach:/);
+    assert.match(request.userMessage, /Files \/ systems affected: Update `src\/session-manager.ts`/);
+    assert.match(request.userMessage, /Tests \/ verification: Add routing tests/);
     assert.match(request.userMessage, /Verification: run focused tests/);
     assert.match(request.userMessage, /External effects: none/);
     assert.deepEqual(

@@ -51,9 +51,9 @@ function classifyDecisionSection(text: string): DecisionSection | undefined {
   if (/\b(delete|deletion|remove|drop|overwrite|force[- ]?push|rm|truncate|credentials?|secrets?|migrate|destructive|irreversible|deploy|publish|release|restart|production|external effect|send|notify|purchase|trade)\b/.test(normalized)) return "effects";
   if (/\b(risk|hazard|failure mode|danger|caveat)\b/.test(normalized)) return "risks";
   if (/\b(objective|scope|goal|purpose|outcome|intent)\b/.test(normalized)) return "objective";
-  if (/^(implementation(?: approach| steps)?|approach|steps?(?: \d+)?)(?:\s*\/[^:]*)?:/.test(normalized)) return "approach";
-  if (/\b(test|verify|verification|validation|lint|typecheck|build|check|proof)\b/.test(normalized)) return "verification";
+  if (/\b(tests?|verify|verification|validation|lint|typecheck|build|checks?|proof)\b/.test(normalized)) return "verification";
   if (/\b(affected|files?\/systems?|components?\/files?)\b/.test(normalized) || /`[^`]+(?:\/[^`]*)?`/.test(text) || /\b[\w.-]+\.(?:ts|tsx|js|jsx|py|md|json|ya?ml|toml|sql)\b/.test(text)) return "affected";
+  if (/^(implementation(?: approach| steps)?|approach|steps?(?: \d+)?)(?:\s*\/[^:]*)?:/.test(normalized)) return "approach";
   if (/\b(approach|implementation|step|change|update|add|create|refactor|modify|wire|use)\b/.test(normalized)) return "approach";
   return undefined;
 }

@@ -23,7 +23,13 @@ function assertPresentation(messages: string[]): void {
     assert.ok(message.length <= 3_200);
     assert.doesNotMatch(message, /(?:^|\n)\s*[-•]?\s*\|/);
     assert.doesNotMatch(message, /Full plan:|omitted for brevity|Empty section/);
-    assert.doesNotMatch(message, /:\s*(?:\n\s*)+(?:[A-Z][^\n]*:|Continued in next message\.|$)/);
+    const lines = message.split("\n").map((line) => line.trim()).filter(Boolean);
+    for (const [index, line] of lines.entries()) {
+      if (!line.endsWith(":")) continue;
+      const next = lines[index + 1];
+      assert.ok(next, `Heading has no body: ${line}`);
+      assert.doesNotMatch(next, /^[A-Z][^:]*:|^Continued in next message\.$/);
+    }
     assert.doesNotMatch(message, /Decision brief\s*\n\s*Continued/);
   }
 }
@@ -83,6 +89,24 @@ describe("plan decision brief presentation", () => {
     for (const text of ["additional routine implementation step", "delete the legacy bucket permanently", tail, "Include all 12 readers", "Option A or Option B", "Expand scope to cover audio", "Verify fixture 11", "Restore the backup"])
       assert.ok(summary.includes(text), text.slice(0, 60));
     assert.match(summary, /reply asking for the complete plan for this version/);
+  });
+
+  it("never compacts late validation or affected-system steps, in metadata or Markdown", () => {
+    const entries = [
+      ...Array.from({ length: 8 }, (_, index) => `Step ${index + 1}: update ordinary helper behavior ${index + 1}.`),
+      "Step 9: Run integration tests.",
+      "Step 10: change `src/video-reader.ts` and `src/audio-reader.ts`.",
+    ];
+    for (const structured of [true, false]) {
+      const summary = buildPlanReviewSummary({ preview: "", artifact: {
+        markdown: structured ? "" : entries.join("\n"),
+        steps: structured ? entries.map((step) => ({ step, status: "pending" as const })) : [],
+      } });
+      assert.match(summary, /Tests \/ verification: Step 9: Run integration tests/);
+      assert.match(summary, /Files \/ systems affected: Step 10: change `src\/video-reader.ts` and `src\/audio-reader.ts`/);
+      assert.doesNotMatch(summary, /ordinary helper behavior 8/);
+      assert.match(summary, /2 additional routine implementation step/);
+    }
   });
 
   it("keeps headings attached at exact boundaries and splits oversized content without loss", () => {

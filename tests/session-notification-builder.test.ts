@@ -337,7 +337,7 @@ describe("session-notification-builder", () => {
     assert.doesNotMatch(payload.userMessage ?? "", new RegExp(oldLine.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
-  it("keeps very large routine plans concise with explicit detail availability", () => {
+  it("preserves validation details in very large numbered plans", () => {
     const hugePlanItems = Array.from({ length: 90 }, (_, index) =>
       `${index + 1}. Step ${index + 1}: update a distinct approval-review surface with explicit wording and detailed validation notes so the finalized plan is intentionally larger than the full-plan pagination budget for a single approval prompt flow.`,
     );
@@ -362,10 +362,11 @@ describe("session-notification-builder", () => {
       planApprovalButtons: buttons as any,
     });
 
-    assert.ok((payload.userMessage ?? "").length <= 3_200);
-    assert.match(payload.userMessage ?? "", /Full-plan detail:/);
-    assert.doesNotMatch(payload.userMessage ?? "", /Step 90:/);
-    assert.deepEqual(payload.buttons, buttons);
+    assert.equal(payload.userMessage, undefined);
+    assert.ok(payload.userMessages!.every((message) => message.text.length <= 3_000));
+    assert.match(payload.userMessages!.map((message) => message.text).join("\n"), /Step 90:/);
+    assert.equal(payload.userMessages!.filter((message) => message.buttons).length, 1);
+    assert.deepEqual(payload.userMessages!.at(-1)!.buttons, buttons);
   });
 
   it("keeps compact approval prompts within the platform budget", () => {
