@@ -9,7 +9,7 @@ const shrinkwrap = JSON.parse(readFileSync(join(rootDir, "npm-shrinkwrap.json"),
 const requiredSecurityVersions = {
   "@hono/node-server": "2.1.1",
   "express-rate-limit": "8.7.0",
-  "fast-uri": "3.1.6",
+  "fast-uri": "3.1.7",
   hono: "4.12.34",
   "ip-address": "10.7.0",
   qs: "6.16.0",
