@@ -1,3 +1,4 @@
+import { assertBranchName, branchOrRemoteTrackingRef, localBranchRef } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import { tmpdir } from "os";
@@ -106,10 +107,12 @@ export function hasEnoughWorktreeSpace(repoDir?: string): boolean {
 }
 
 export function branchExists(repoDir: string, branchName: string): boolean {
+  assertBranchName(branchName);
+
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", branchName],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef(branchName)],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -120,11 +123,14 @@ export function branchExists(repoDir: string, branchName: string): boolean {
 
 /** Fetch a single branch into a remote-tracking ref without changing a checkout. */
 export function fetchRemoteBranchRef(repoDir: string, branchName: string, remote = "origin"): string | undefined {
+  assertBranchName(branchName);
+  assertBranchName(remote);
+
   const remoteRef = `refs/remotes/${remote}/${branchName}`;
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "fetch", remote, `+${branchName}:${remoteRef}`],
+      ["-C", repoDir, "fetch", remote, `+${localBranchRef(branchName)}:${remoteRef}`],
       { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     execFileSync(
@@ -158,8 +164,11 @@ export function hasEnoughFreeBytes(freeBytes: number): boolean {
 }
 
 export function detectDefaultBranch(repoDir: string): string {
-  const envBranch = process.env.OPENCLAW_WORKTREE_BASE_BRANCH?.trim();
-  if (envBranch) return envBranch;
+  const envBranch = process.env.OPENCLAW_WORKTREE_BASE_BRANCH;
+  if (envBranch !== undefined) {
+    assertBranchName(envBranch);
+    return envBranch;
+  }
 
   try {
     const result = execFileSync(
@@ -168,7 +177,10 @@ export function detectDefaultBranch(repoDir: string): string {
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const branch = result.trim().replace(/^origin\//, "");
-    if (branch) return branch;
+    if (branch) {
+      assertBranchName(branch);
+      return branch;
+    }
   } catch {
     // fall through
   }
@@ -176,7 +188,7 @@ export function detectDefaultBranch(repoDir: string): string {
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", "main"],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef("main")],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return "main";
@@ -187,7 +199,7 @@ export function detectDefaultBranch(repoDir: string): string {
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", "--verify", "master"],
+      ["-C", repoDir, "rev-parse", "--verify", localBranchRef("master")],
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return "master";
@@ -215,10 +227,13 @@ export function getBranchName(worktreePath: string): string | undefined {
 }
 
 export function getCommitsAheadCount(repoDir: string, branch: string, base: string): number | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const result = execFileSync(
       "git",
-      ["-C", repoDir, "rev-list", "--count", `${base}..${branch}`],
+      ["-C", repoDir, "rev-list", "--count", `${localBranchRef(base)}..${localBranchRef(branch)}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const count = parseInt(result.trim(), 10);
@@ -237,10 +252,13 @@ export function getAheadBehindCounts(
   branch: string,
   base: string,
 ): { ahead: number; behind: number } | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const result = execFileSync(
       "git",
-      ["-C", repoDir, "rev-list", "--left-right", "--count", `${branch}...${base}`],
+      ["-C", repoDir, "rev-list", "--left-right", "--count", `${localBranchRef(branch)}...${localBranchRef(base)}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     const [aheadRaw, behindRaw] = result.split(/\s+/);
@@ -254,10 +272,13 @@ export function getAheadBehindCounts(
 }
 
 export function isBranchAncestorOfBase(repoDir: string, branch: string, base: string): boolean {
+  const branchRef = branchOrRemoteTrackingRef(branch);
+  const baseRef = branchOrRemoteTrackingRef(base);
+
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "merge-base", "--is-ancestor", branch, base],
+      ["-C", repoDir, "merge-base", "--is-ancestor", branchRef, baseRef],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -267,15 +288,18 @@ export function isBranchAncestorOfBase(repoDir: string, branch: string, base: st
 }
 
 export function wouldMergeBeNoop(repoDir: string, branch: string, base: string): boolean {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const mergedTree = execFileSync(
       "git",
-      ["-C", repoDir, "merge-tree", "--write-tree", base, branch],
+      ["-C", repoDir, "merge-tree", "--write-tree", localBranchRef(base), localBranchRef(branch)],
       { timeout: 15_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     const baseTree = execFileSync(
       "git",
-      ["-C", repoDir, "rev-parse", `${base}^{tree}`],
+      ["-C", repoDir, "rev-parse", `${localBranchRef(base)}^{tree}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     return Boolean(mergedTree) && mergedTree === baseTree;
@@ -285,6 +309,8 @@ export function wouldMergeBeNoop(repoDir: string, branch: string, base: string):
 }
 
 export function deleteBranch(repoDir: string, branch: string): boolean {
+  assertBranchName(branch);
+
   try {
     execFileSync(
       "git",

@@ -18,6 +18,8 @@ function installFakeGit(t: import("node:test").TestContext, scriptLines: string[
   writeFileSync(gitPath, [
     "#!/bin/sh",
     "set -eu",
+    // These fixtures use only main/feature; support their new validation probe.
+    'case "$1:$2" in check-ref-format:refs/heads/main|check-ref-format:refs/heads/feature) exit 0;; esac',
     ...scriptLines.map((line) => line.replaceAll("__TEMP_DIR__", tempDir)),
     "exit 1",
     "",

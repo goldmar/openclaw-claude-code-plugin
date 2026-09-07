@@ -1,3 +1,4 @@
+import { assertBranchName, localBranchRef } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 
@@ -40,17 +41,22 @@ function errorMessage(err: unknown): string {
 }
 
 export function getDiffSummary(repoDir: string, branch: string, base: string): DiffSummary | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+  const branchRef = localBranchRef(branch);
+  const baseRef = localBranchRef(base);
+
   try {
     const countResult = execFileSync(
       "git",
-      ["-C", repoDir, "rev-list", "--count", `${base}..${branch}`],
+      ["-C", repoDir, "rev-list", "--count", `${baseRef}..${branchRef}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const commits = parseInt(countResult.trim(), 10);
 
     const diffStatResult = execFileSync(
       "git",
-      ["-C", repoDir, "diff", "--shortstat", `${base}...${branch}`],
+      ["-C", repoDir, "diff", "--shortstat", `${baseRef}...${branchRef}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const diffStat = diffStatResult.trim();
@@ -70,7 +76,7 @@ export function getDiffSummary(repoDir: string, branch: string, base: string): D
 
     const changedFilesResult = execFileSync(
       "git",
-      ["-C", repoDir, "diff", "--name-only", "--diff-filter=ACMR", `${base}...${branch}`],
+      ["-C", repoDir, "diff", "--name-only", "--diff-filter=ACMR", `${baseRef}...${branchRef}`],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const changedFiles = changedFilesResult
@@ -81,7 +87,7 @@ export function getDiffSummary(repoDir: string, branch: string, base: string): D
 
     const logResult = execFileSync(
       "git",
-      ["-C", repoDir, "log", `${base}..${branch}`, "--format=%h|%s|%an", "-n", "5"],
+      ["-C", repoDir, "log", `${baseRef}..${branchRef}`, "--format=%h|%s|%an", "-n", "5"],
       { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
 
@@ -102,10 +108,14 @@ export function getDiffSummary(repoDir: string, branch: string, base: string): D
 }
 
 export function pushBranch(repoDir: string, branch: string, remote: string = "origin"): boolean {
+  assertBranchName(branch);
+  assertBranchName(remote);
+  const branchRef = localBranchRef(branch);
+
   try {
     execFileSync(
       "git",
-      ["-C", repoDir, "push", remote, branch],
+      ["-C", repoDir, "push", remote, `${branchRef}:${branchRef}`],
       { timeout: 60_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return true;
@@ -137,6 +147,11 @@ export function mergeBranch(
   strategy: "merge" | "squash" = "merge",
   worktreePath?: string,
 ): MergeResult {
+  assertBranchName(branch);
+  assertBranchName(base);
+  const branchRef = localBranchRef(branch);
+  const baseRef = localBranchRef(base);
+
   let stashed = false;
   let stashRef: string | undefined;
   const warnings: string[] = [];
@@ -191,7 +206,7 @@ export function mergeBranch(
         }
       }
 
-      execFileSync("git", ["-C", repoDir, "merge", "--squash", branch], { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+      execFileSync("git", ["-C", repoDir, "merge", "--squash", branchRef], { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
       execFileSync("git", ["-C", repoDir, "commit", "-m", `Squash merge ${branch}`], { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
 
       let stashPopConflict = false;
@@ -249,7 +264,7 @@ export function mergeBranch(
     }
 
     try {
-      execFileSync("git", ["-C", rebaseDir, "rebase", base], { timeout: 60_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+      execFileSync("git", ["-C", rebaseDir, "rebase", baseRef], { timeout: 60_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
     } catch {
       try {
         execFileSync("git", ["-C", rebaseDir, "rebase", "--abort"], { timeout: 15_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
@@ -281,7 +296,7 @@ export function mergeBranch(
     }
 
     execFileSync("git", ["-C", repoDir, "checkout", base], { timeout: 15_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-    execFileSync("git", ["-C", repoDir, "merge", "--ff-only", branch], { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+    execFileSync("git", ["-C", repoDir, "merge", "--ff-only", branchRef], { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
 
     let stashPopConflict = false;
     if (stashed) {

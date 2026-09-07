@@ -1,3 +1,4 @@
+import { branchNameValidationError } from "../worktree-ref-validation";
 import { REASONING_EFFORTS, type ReasoningEffort } from "../types";
 import { Type } from "../tool-schema";
 import { sessionManager } from "../singletons";
@@ -138,7 +139,7 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
         ),
       ),
       worktree_base_branch: Type.Optional(
-        Type.String({ description: "Base branch for worktree merge/PR operations (default: auto-detected or 'main')" }),
+        Type.String({ description: "Literal Git branch name for worktree merge/PR operations; options and revision expressions are rejected (default: auto-detected or 'main')" }),
       ),
       worktree_pr_target_repo: Type.Optional(
         Type.String({ description: "Target repository for cross-repo PRs (e.g. 'openai/codex' for fork-to-upstream workflow). If not set, auto-detected from 'upstream' remote or defaults to 'origin'." }),
@@ -150,6 +151,11 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
       }
       if (!isAgentLaunchParams(params)) {
         return { content: [{ type: "text", text: "Error: Invalid parameters. Expected at least { prompt }." }] };
+      }
+
+      if (params.worktree_base_branch !== undefined) {
+        const branchError = branchNameValidationError(params.worktree_base_branch);
+        if (branchError) return { content: [{ type: "text", text: `Error: ${branchError}` }] };
       }
 
       // Guard: agentId is NOT a valid parameter for agent_launch. It belongs to sessions_spawn (OpenClaw sub-agents).

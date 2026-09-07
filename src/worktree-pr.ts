@@ -1,3 +1,4 @@
+import { assertBranchName } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import { isGitHubCLIAvailable } from "./worktree-repo";
 
@@ -116,6 +117,8 @@ export function createPR(
   targetRepo?: string,
   options: CreatePROptions = {},
 ): PRResult {
+  assertBranchName(branch);
+  assertBranchName(base);
   if (!isGitHubCLIAvailable()) {
     return { success: false, error: "GitHub CLI (gh) is not available" };
   }
@@ -184,6 +187,7 @@ export function createPR(
 }
 
 export function syncWorktreePR(repoDir: string, branchName: string, targetRepo?: string): PRStatus {
+  assertBranchName(branchName);
   if (!isGitHubCLIAvailable()) {
     return { exists: false, state: "none" };
   }
