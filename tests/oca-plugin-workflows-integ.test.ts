@@ -310,7 +310,7 @@ describe("OCA plugin workflow integration coverage", () => {
         session.id,
         "Summary:\n- Touches plan approval state\n- Risk: medium\n- Scope matches the user request",
       );
-      assert.match(result, /Canonical plan approval prompt sent/u);
+      assert.match(result, /Canonical plan approval prompt queued/u);
       assert.equal(calls.length, 2);
       const userRequest = calls[1][1];
       assert.equal(userRequest.label, "plan-approval");

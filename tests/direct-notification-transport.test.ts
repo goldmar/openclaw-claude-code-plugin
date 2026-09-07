@@ -4,6 +4,7 @@ import {
   RuntimeDirectNotificationTransport,
   directNotificationTransportInternals,
 } from "../src/direct-notification-transport";
+import { buildWaitingForInputPayload } from "../src/session-notification-builders/waiting";
 import { getRuntimeConfig, setPluginRuntime } from "../src/runtime-store";
 
 describe("RuntimeDirectNotificationTransport", () => {
@@ -611,6 +612,38 @@ describe("RuntimeDirectNotificationTransport", () => {
     ]]);
     assertNoInvalidTelegramStyle(payloads[0]);
   });
+
+  for (const channel of ["telegram", "discord"]) {
+    it(`preserves generated decision fields and final controls through ${channel} presentation`, async () => {
+      const payloads: any[] = [];
+      const textPages: string[] = [];
+      setPluginRuntime({ channel: { outbound: { loadAdapter: async () => ({
+        sendText: async (ctx: { text: string }) => { textPages.push(ctx.text); },
+        renderPresentation: ({ payload }: { payload: unknown }) => payload,
+        sendPayload: async (ctx: { payload: unknown }) => { payloads.push(ctx.payload); },
+      }) } } }, { channels: { [channel]: { enabled: true } } });
+      const brief = buildWaitingForInputPayload({
+        session: { id: "brief", name: "brief", pendingPlanApproval: true, planDecisionVersion: 1 } as any,
+        preview: "", originThreadLine: "", planApprovalMode: "ask",
+        planArtifact: { steps: [], markdown: "## Scope\n| File | Decision |\n|---|---|\n| video.ts | Local decoding |\n## Risks\n" + "Private frames may leak. ".repeat(250) },
+        planApprovalButtons: [[{ label: "Approve", callbackData: "approve-token", style: "primary" },
+          { label: "Revise", callbackData: "revise-token", style: "secondary" },
+          { label: "Reject", callbackData: "reject-token", style: "danger" }]],
+      });
+      const transport = new RuntimeDirectNotificationTransport();
+      for (const message of brief.userMessages!) {
+        await transport.send({ channel, target: "test-target", accountId: "default" }, message.text, message.buttons);
+      }
+      assert.deepEqual(textPages, brief.userMessages!.slice(0, -1).map((message) => message.text));
+      assert.equal(payloads.length, 1);
+      assert.equal(payloads[0].text, brief.userMessages!.at(-1)!.text);
+      assert.match(textPages.join("\n"), /File: video.ts; Decision: Local decoding/);
+      assert.doesNotMatch(textPages.join("\n"), /- \||\|---/);
+      assert.deepEqual(payloads[0].interactive.blocks[0].buttons.map((button: any) => button.label), ["Approve", "Revise", "Reject"]);
+      if (channel === "telegram") assert.equal(telegramButtons(payloads[0])[0].length, 3);
+      else assert.equal(payloads[0].channelData, undefined);
+    });
+  }
 
   it("does not sanitize shared presentation styles for non-Telegram transports", async () => {
     const payloads: unknown[] = [];

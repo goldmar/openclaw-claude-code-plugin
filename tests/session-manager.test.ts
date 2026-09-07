@@ -2374,8 +2374,8 @@ describe("SessionManager turn-end wake", () => {
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
     assert.match(request.userMessage, /Plan v7 ready for approval/);
-    assert.match(request.userMessage, /Decision brief:/);
-    assert.match(request.userMessage, /- Plan preview/);
+    assert.match(request.userMessage, /Decision brief/);
+    assert.match(request.userMessage, /Plan preview/);
     assert.equal(request.buttons[0][0].label, "Approve");
     assert.equal(request.buttons[0][1].label, "Revise");
     assert.equal(request.buttons[0][2].label, "Reject");
@@ -2539,7 +2539,7 @@ describe("SessionManager turn-end wake", () => {
     assert.equal(calls.length, 1);
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
-    assert.match(request.userMessage, /Decision brief:/);
+    assert.match(request.userMessage, /Decision brief/);
     assert.match(request.userMessage, /Keep only the distilled final plan in the approval summary/);
     assert.match(request.userMessage, /Add a regression test for transcript leakage/);
     assert.doesNotMatch(request.userMessage, /Thinking through the notification path/);
@@ -2574,7 +2574,7 @@ describe("SessionManager turn-end wake", () => {
     assert.equal(calls.length, 1);
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
-    assert.match(request.userMessage, /Decision brief:/);
+    assert.match(request.userMessage, /Decision brief/);
     assert.match(request.userMessage, /Implementation approach:/);
     assert.match(request.userMessage, /Trace the approval path/);
     assert.match(request.userMessage, /Render the full plan in the prompt/);
@@ -2608,7 +2608,7 @@ describe("SessionManager turn-end wake", () => {
     assert.equal(calls.length, 1);
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
-    assert.match(request.userMessage, /Decision brief:/);
+    assert.match(request.userMessage, /Decision brief/);
     assert.match(request.userMessage, /Full-plan detail:/);
     assert.match(request.userMessage, /additional/);
     assert.equal(request.userMessages, undefined);
@@ -2689,7 +2689,7 @@ describe("SessionManager turn-end wake", () => {
       assert.equal(calls.length, 1);
       const [_sessionArg, request] = calls[0];
       assert.equal(request.label, "plan-approval");
-      assert.match(request.userMessage, /Decision brief:/);
+      assert.match(request.userMessage, /Decision brief/);
       assert.match(request.userMessage, /Step 1:/);
       assert.match(request.userMessage, /additional routine implementation step/);
       assert.doesNotMatch(request.userMessage, /grounding in the current workspace state/);
@@ -2728,9 +2728,9 @@ describe("SessionManager turn-end wake", () => {
     assert.equal(calls.length, 1);
     const [_sessionArg, request] = calls[0];
     assert.equal(request.label, "plan-approval");
-    assert.match(request.userMessage, /Decision brief:/);
-    assert.match(request.userMessage, /- Inspect the current notification flow/);
-    assert.match(request.userMessage, /- Add a safe fallback summary/);
+    assert.match(request.userMessage, /Decision brief/);
+    assert.match(request.userMessage, /Inspect the current notification flow/);
+    assert.match(request.userMessage, /Add a safe fallback summary/);
     assert.doesNotMatch(request.userMessage, /Stale explanation/);
     assert.doesNotMatch(request.userMessage, /Stale step/);
     assert.doesNotMatch(request.userMessage, /Should I proceed\?/);
@@ -2758,7 +2758,7 @@ describe("SessionManager turn-end wake", () => {
       "Summary:\n- Touches `src/session-manager.ts`\n- Risk: medium because approval routing changes\n- Scope matches original task",
     );
 
-    assert.match(result, /Canonical plan approval prompt sent/);
+    assert.match(result, /Canonical plan approval prompt queued/);
     assert.match(result, /Do not send a separate plain-text approval message/);
 
     const calls = (sm as any).__dispatchCalls;
@@ -2768,7 +2768,7 @@ describe("SessionManager turn-end wake", () => {
     assert.match(request.userMessage, /Plan v9 needs your decision/);
     assert.match(request.userMessage, /Why this was escalated:/);
     assert.match(request.userMessage, /Risk: medium/);
-    assert.match(request.userMessage, /Decision brief:/);
+    assert.match(request.userMessage, /Decision brief/);
     assert.match(request.userMessage, /Objective \/ scope:/);
     assert.match(request.userMessage, /preserve approval ownership/);
     assert.match(request.userMessage, /Implementation approach:/);
@@ -2831,7 +2831,7 @@ describe("SessionManager turn-end wake", () => {
     const rendered = request.userMessages.map((message: { text: string }) => message.text).join("\n");
     assert.match(rendered, /Why this was escalated:/);
     assert.match(rendered, /delete reviewed dated memory Markdown older than today/);
-    assert.match(rendered, /Decision brief:/);
+    assert.match(rendered, /Decision brief/);
     assert.match(rendered, /Files \/ systems affected:/);
     assert.match(rendered, /Tests \/ verification:/);
     assert.match(rendered, /Destructive \/ external effects:/);
@@ -2872,7 +2872,7 @@ describe("SessionManager turn-end wake", () => {
       s.id,
       "Summary:\n- Touches `src/session-manager.ts`\n- Risk: medium\n- Scope matches original task",
     );
-    assert.match(first, /Canonical plan approval prompt sent/);
+    assert.match(first, /Canonical plan approval prompt queued/);
 
     const [_sessionArg, request] = (sm as any).__dispatchCalls[0];
     request.hooks.onNotifySucceeded();

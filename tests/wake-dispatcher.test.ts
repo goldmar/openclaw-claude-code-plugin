@@ -4,6 +4,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WakeDispatcher, validateCompletionFollowupWakeSuccess } from "../src/wake-dispatcher";
+import { buildWaitingForInputPayload } from "../src/session-notification-builders/waiting";
 import { wakeDeliveryExecutorInternals } from "../src/wake-delivery-executor";
 
 type FakeSession = {
@@ -1404,8 +1405,8 @@ if (process.env.OPENCLAW_TEST_STDOUT) {
       onSuccess?: () => void,
     ) => {
       deliveries.push(text);
-      if (deliveries.length === 1) onSuccess?.();
-      else onAllFailed?.();
+      if (_buttons) onAllFailed?.();
+      else onSuccess?.();
     };
     (dispatcher as any).sendWake = (
       _session: FakeSession,
@@ -1419,16 +1420,16 @@ if (process.env.OPENCLAW_TEST_STDOUT) {
       onSuccess?.();
     };
 
+    const payload = buildWaitingForInputPayload({
+      session: { ...session, name: "decision-brief", pendingPlanApproval: true, planDecisionVersion: 2 } as any,
+      preview: "", originThreadLine: "", planApprovalMode: "ask",
+      planArtifact: { steps: [], markdown: "## Risks\n" + "Private frames may leak. ".repeat(250) },
+      planApprovalButtons: [[{ label: "Approve", callbackData: "approve-v2" }]],
+    });
+    assert.ok(payload.userMessages!.length > 1);
     dispatcher.dispatchSessionNotification(session as any, {
       label: "plan-approval",
-      userMessages: [
-        { text: "decision context" },
-        {
-          text: "canonical decision prompt",
-          buttons: [[{ label: "Approve", callbackData: "approve-v2" }]],
-          requiredForSequenceSuccess: true,
-        },
-      ],
+      userMessages: payload.userMessages,
       wakeMessageOnNotifySuccess: "notify success wake",
       wakeMessageOnNotifyFailed: "notify failed wake",
       hooks: {
@@ -1437,7 +1438,7 @@ if (process.env.OPENCLAW_TEST_STDOUT) {
       },
     });
 
-    assert.deepEqual(deliveries, ["decision context", "canonical decision prompt"]);
+    assert.deepEqual(deliveries, payload.userMessages!.map((message) => message.text));
     assert.equal(notifyFailed, 1);
     assert.equal(notifySucceeded, 0);
     assert.deepEqual(wakeEvents, ["notify failed wake"]);

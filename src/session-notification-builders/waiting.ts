@@ -59,8 +59,6 @@ export function buildPlanApprovalFallbackText(args: {
     `- Reply "reject" to reject and stop the session`,
     `- Any other reply will be sent back as revision feedback`,
     ``,
-    `Decision context:`,
-    ``,
     summary,
   ].join("\n");
 }
