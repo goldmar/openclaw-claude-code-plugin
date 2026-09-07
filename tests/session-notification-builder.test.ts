@@ -29,9 +29,9 @@ describe("session-notification-builder", () => {
     });
 
     assert.equal(payload.label, "plan-approval");
-    assert.match(payload.userMessage ?? "", /Decision brief:/);
-    assert.match(payload.userMessage ?? "", /- Inspect the state flow/);
-    assert.match(payload.userMessage ?? "", /- Update the approval builder/);
+    assert.match(payload.userMessage ?? "", /Decision brief/);
+    assert.match(payload.userMessage ?? "", /Inspect the state flow/);
+    assert.match(payload.userMessage ?? "", /Update the approval builder/);
     assert.doesNotMatch(payload.userMessage ?? "", /Should I proceed\?/);
     assert.equal(payload.buttons, buttons);
     assert.match(payload.planReviewSummary ?? "", /Objective \/ scope:/);
@@ -107,7 +107,7 @@ describe("session-notification-builder", () => {
       planApprovalButtons: buttons as any,
     });
 
-    assert.match(payload.userMessage ?? "", /Decision brief:/);
+    assert.match(payload.userMessage ?? "", /Decision brief/);
     assert.match(payload.userMessage ?? "", /Full-plan detail:/);
     assert.equal(payload.userMessages, undefined);
     assert.deepEqual(payload.buttons, buttons);
@@ -219,8 +219,8 @@ describe("session-notification-builder", () => {
     });
 
     assert.match(summary, /Objective \/ scope:/);
-    assert.match(summary, /- Inspect the current notification flow/);
-    assert.match(summary, /- Add a safe fallback summary/);
+    assert.match(summary, /Inspect the current notification flow/);
+    assert.match(summary, /Add a safe fallback summary/);
     assert.doesNotMatch(summary, /Thinking through the notification path/);
     assert.doesNotMatch(summary, /Should I proceed\?/);
   });
@@ -337,7 +337,7 @@ describe("session-notification-builder", () => {
     assert.doesNotMatch(payload.userMessage ?? "", new RegExp(oldLine.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
-  it("keeps very large routine plans concise with explicit detail availability", () => {
+  it("preserves validation details in very large numbered plans", () => {
     const hugePlanItems = Array.from({ length: 90 }, (_, index) =>
       `${index + 1}. Step ${index + 1}: update a distinct approval-review surface with explicit wording and detailed validation notes so the finalized plan is intentionally larger than the full-plan pagination budget for a single approval prompt flow.`,
     );
@@ -362,10 +362,11 @@ describe("session-notification-builder", () => {
       planApprovalButtons: buttons as any,
     });
 
-    assert.ok((payload.userMessage ?? "").length <= 3_200);
-    assert.match(payload.userMessage ?? "", /Full-plan detail:/);
-    assert.doesNotMatch(payload.userMessage ?? "", /Step 90:/);
-    assert.deepEqual(payload.buttons, buttons);
+    assert.equal(payload.userMessage, undefined);
+    assert.ok(payload.userMessages!.every((message) => message.text.length <= 3_000));
+    assert.match(payload.userMessages!.map((message) => message.text).join("\n"), /Step 90:/);
+    assert.equal(payload.userMessages!.filter((message) => message.buttons).length, 1);
+    assert.deepEqual(payload.userMessages!.at(-1)!.buttons, buttons);
   });
 
   it("keeps compact approval prompts within the platform budget", () => {
@@ -482,7 +483,7 @@ describe("session-notification-builder", () => {
 
     assert.match(message, /Interactive Approve \/ Revise \/ Reject buttons could not be delivered/);
     assert.match(message, /Reply "approve"/);
-    assert.match(message, /Decision context:/);
+    assert.doesNotMatch(message, /Decision context:/);
     assert.match(message, /Summary of the plan/);
   });
 

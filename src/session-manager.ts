@@ -1316,7 +1316,7 @@ export class SessionManager {
     );
 
     return [
-      `Canonical plan approval prompt sent for session ${session.name} [${sessionId}].`,
+      `Canonical plan approval prompt queued for session ${session.name} [${sessionId}].`,
       `Wait for the user's Approve, Revise, or Reject response.`,
       `Do not send a separate plain-text approval message.`,
     ].join(" ");

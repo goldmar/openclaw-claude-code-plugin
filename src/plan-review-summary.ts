@@ -5,10 +5,7 @@ const PLAN_APPROVAL_FULL_PLAN_MAX_CHARS = 3_200;
 const PLAN_APPROVAL_FULL_PLAN_CHUNK_MAX_CHARS = 3_000;
 const PLAN_APPROVAL_FULL_PLAN_CHUNK_BODY_MAX_CHARS = 2_400;
 const PLAN_APPROVAL_SESSION_NAME_MAX_CHARS = 120;
-const PLAN_APPROVAL_SUMMARY_ITEM_MAX_CHARS = 420;
 const PLAN_APPROVAL_APPROACH_MAX_ITEMS = 6;
-const PLAN_APPROVAL_AFFECTED_MAX_ITEMS = 6;
-const PLAN_APPROVAL_VERIFICATION_MAX_ITEMS = 4;
 
 type DecisionSection =
   | "objective"
@@ -17,7 +14,9 @@ type DecisionSection =
   | "verification"
   | "effects"
   | "risks"
-  | "unknowns";
+  | "unknowns"
+  | "costs"
+  | "rollback";
 
 const DECISION_SECTION_LABELS: Record<DecisionSection, string> = {
   objective: "Objective / scope",
@@ -27,6 +26,8 @@ const DECISION_SECTION_LABELS: Record<DecisionSection, string> = {
   effects: "Destructive / external effects",
   risks: "Material risks",
   unknowns: "Unknowns / decisions",
+  costs: "Costs / resources",
+  rollback: "Rollback / recovery",
 };
 
 export type PlanApprovalPromptContent = {
@@ -37,19 +38,22 @@ export type PlanApprovalPromptContent = {
 
 function classifyDecisionSection(text: string): DecisionSection | undefined {
   const normalized = text.toLowerCase();
-  if (/^(unknowns?|omissions?|assumptions?|open questions?|decisions?)(?:\s*\/[^:]*)?:/.test(normalized)) return "unknowns";
+  if (/\b(rollback|roll back|revert|restore|recovery)\b/.test(normalized)) return "rollback";
+  if (/\?\s*$/.test(normalized)) return "unknowns";
+  if (/^budget:|\b(costs?|billing|paid|pricing|spend|charges?)\b|[$€£]\s*\d/.test(normalized)) return "costs";
+  if (/^(unknowns?|omissions?|assumptions?|open questions?|decisions?|choices?|alternatives?|options?)(?:\s*\/[^:]*)?:/.test(normalized)) return "unknowns";
   if (/^(material\s+)?risks?(?:\s*\/[^:]*)?:/.test(normalized)) return "risks";
   if (/^(destructive|irreversible|external)(?:\s*\/[^:]*)?\s*(?:effects?|actions?)?:/.test(normalized)) return "effects";
   if (/^(tests?|verification|validation)(?:\s*\/[^:]*)?:/.test(normalized)) return "verification";
   if (/^(affected\s+)?(?:files?|components?|systems?)(?:\s*\/[^:]*)?:/.test(normalized)) return "affected";
   if (/^(objective|scope|goal|purpose)(?:\s*\/[^:]*)?:/.test(normalized)) return "objective";
-  if (/^(implementation|approach|steps?)(?:\s*\/[^:]*)?:/.test(normalized)) return "approach";
-  if (/\b(unknown|uncertain|assumption|omission|open question|decision needed|tbd|not specified)\b/.test(normalized)) return "unknowns";
-  if (/\b(delete|deletion|remove|drop|overwrite|force[- ]?push|destructive|irreversible|deploy|publish|release|restart|production|external effect|send|notify|purchase|trade)\b/.test(normalized)) return "effects";
-  if (/\b(test|verify|verification|validation|lint|typecheck|build|check|proof)\b/.test(normalized)) return "verification";
+  if (/\b(unknown|uncertain|assumption|omission|open question|choose|choices?|alternatives?|options?|decision needed|tbd|not specified)\b/.test(normalized)) return "unknowns";
+  if (/\b(delete|deletion|remove|drop|overwrite|force[- ]?push|rm|truncate|credentials?|secrets?|migrate|destructive|irreversible|deploy|publish|release|restart|production|external effect|send|notify|purchase|trade)\b/.test(normalized)) return "effects";
   if (/\b(risk|hazard|failure mode|danger|caveat)\b/.test(normalized)) return "risks";
-  if (/\b(affected|files?\/systems?|components?\/files?)\b/.test(normalized) || /`[^`]+(?:\/[^`]*)?`/.test(text) || /\b[\w.-]+\.(?:ts|tsx|js|jsx|py|md|json|ya?ml|toml|sql)\b/.test(text)) return "affected";
   if (/\b(objective|scope|goal|purpose|outcome|intent)\b/.test(normalized)) return "objective";
+  if (/\b(tests?|verify|verification|validation|lint|typecheck|build|checks?|proof)\b/.test(normalized)) return "verification";
+  if (/\b(affected|files?\/systems?|components?\/files?)\b/.test(normalized) || /`[^`]+(?:\/[^`]*)?`/.test(text) || /\b[\w.-]+\.(?:ts|tsx|js|jsx|py|md|json|ya?ml|toml|sql)\b/.test(text)) return "affected";
+  if (/^(implementation(?: approach| steps)?|approach|steps?(?: \d+)?)(?:\s*\/[^:]*)?:/.test(normalized)) return "approach";
   if (/\b(approach|implementation|step|change|update|add|create|refactor|modify|wire|use)\b/.test(normalized)) return "approach";
   return undefined;
 }
@@ -62,44 +66,87 @@ function stripPlanLinePrefix(line: string): string {
     .trim();
 }
 
-function isHeading(line: string): boolean {
-  return /^#{1,6}\s+/.test(line) || /^[A-Za-z][^.!?]{0,80}:\s*$/.test(line);
+// Normalize plan-local Markdown before extraction, including tables that may
+// already have acquired a list prefix. Plain fields work on every chat channel.
+function cleanInline(text: string): string {
+  // Code spans are literal: emphasis cleanup must not rewrite identifiers such
+  // as `__init__` or glob expressions inside them.
+  return text.split(/(`+[^`]*`+)/g).map((part, index) => index % 2 ? part : part
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/(^|\s)__([^_]+)__(?=\s|$|:)/g, "$1$2"))
+    .join("").trim();
 }
 
-function pushUnique(target: string[], text: string, preserveFull: boolean = false): void {
+function isHeading(line: string): boolean {
+  const text = cleanInline(stripPlanLinePrefix(line));
+  return /^#{1,6}\s+/.test(line) || /^[A-Za-z][^.!?]{0,80}:\s*$/.test(text);
+}
+
+function normalizePlanLines(source: string): string[] {
+  const lines = source.split("\n");
+  const result: string[] = [];
+  const cells = (line: string): string[] => cleanInline(stripPlanLinePrefix(line))
+    .replace(/^•\s*/, "").replace(/^\|/, "").replace(/\|$/, "")
+    .split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    const next = lines[index + 1];
+    if (line.includes("|") && next && cells(next).every((cell) => /^:?-+:?$/.test(cell))) {
+      const headers = cells(line);
+      index += 1;
+      while (index + 1 < lines.length && lines[index + 1]!.includes("|")) {
+        const row = cells(lines[++index]!);
+        const fields = row.flatMap((value, column) => value ? [`${headers[column] || `Field ${column + 1}`}: ${value}`] : []);
+        if (fields.length) result.push(`- ${fields.join("; ")}`);
+      }
+    } else {
+      result.push(cleanInline(line));
+    }
+  }
+  return result;
+}
+
+function pushUnique(target: string[], text: string): void {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return;
-  const bounded = preserveFull ? normalized : truncateText(normalized, PLAN_APPROVAL_SUMMARY_ITEM_MAX_CHARS);
-  if (!target.some((item) => item.toLowerCase() === bounded.toLowerCase())) target.push(bounded);
+  if (!target.some((item) => item.toLowerCase() === normalized.toLowerCase())) target.push(normalized);
 }
 
-function buildDecisionGradePlanSummary(args: { preview: string; artifact?: PlanArtifact }): string {
+function buildDecisionGradePlanSummary(args: { preview: string; artifact?: PlanArtifact; detailRef?: string }): string {
   const source = args.artifact?.markdown?.trim() || args.preview.trim();
   const sections: Record<DecisionSection, string[]> = {
-    objective: [], approach: [], affected: [], verification: [], effects: [], risks: [], unknowns: [],
+    objective: [], approach: [], affected: [], verification: [], effects: [], risks: [], unknowns: [], costs: [], rollback: [],
   };
   let activeSection: DecisionSection | undefined;
   let unclassifiedCount = 0;
 
-  if (args.artifact?.explanation?.trim()) pushUnique(sections.objective, args.artifact.explanation);
-  for (const step of args.artifact?.steps ?? []) pushUnique(sections.approach, step.step);
+  if (args.artifact?.explanation?.trim()) pushUnique(sections.objective, formatPlanApprovalSummary(args.artifact.explanation));
+  for (const step of args.artifact?.steps ?? []) {
+    const text = formatPlanApprovalSummary(step.step);
+    const section = classifyDecisionSection(text) ?? "approach";
+    pushUnique(sections[section], text);
+  }
 
-  for (const rawLine of source.split("\n")) {
+  for (const rawLine of normalizePlanLines(source)) {
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
-    const text = stripPlanLinePrefix(trimmed).replace(/:\s*$/, "").trim();
-    if (!text || /^(plan|proposed plan|implementation plan)$/i.test(text)) continue;
-    if (/^(thinking|checking|considering|analyzing)\b/i.test(text) || /^(should|can|could|would|will)\b.*\?$/i.test(text)) continue;
+    const text = stripPlanLinePrefix(trimmed);
+    if (!text || /^(plan|proposed plan|implementation plan|decision brief):?$/i.test(text)) continue;
+    if (/^(thinking|checking|considering|analyzing)\b/i.test(text) || /^(should|can|could|would|will) (?:i|we) (?:proceed|continue|start)\?$/i.test(text)) continue;
 
     if (isHeading(trimmed)) {
-      activeSection = classifyDecisionSection(text);
+      activeSection = classifyDecisionSection(`${text.replace(/:\s*$/, "")}:`);
       continue;
     }
 
-    const classified = classifyDecisionSection(text) ?? activeSection;
+    const inferred = classifyDecisionSection(text);
+    // An explicit risk/cost/scope heading governs its body even when that body
+    // mentions a file or a test. Those incidental words must not hide decisions.
+    const materialSections: DecisionSection[] = ["objective", "effects", "risks", "unknowns", "costs", "rollback"];
+    const classified = activeSection && materialSections.includes(activeSection)
+      ? activeSection : inferred ?? activeSection;
     if (classified) {
-      if (classified === "approach" && (args.artifact?.steps.length ?? 0) > 0) continue;
-      pushUnique(sections[classified], text, classified === "effects" || classified === "risks" || classified === "unknowns");
+      pushUnique(sections[classified], text);
     } else if (sections.objective.length === 0) {
       pushUnique(sections.objective, text);
     } else {
@@ -108,49 +155,71 @@ function buildDecisionGradePlanSummary(args: { preview: string; artifact?: PlanA
     }
   }
 
-  const approachOmitted = Math.max(0, sections.approach.length - PLAN_APPROVAL_APPROACH_MAX_ITEMS);
-  const affectedOmitted = Math.max(0, sections.affected.length - PLAN_APPROVAL_AFFECTED_MAX_ITEMS);
-  const verificationOmitted = Math.max(0, sections.verification.length - PLAN_APPROVAL_VERIFICATION_MAX_ITEMS);
-  sections.approach = sections.approach.slice(0, PLAN_APPROVAL_APPROACH_MAX_ITEMS);
-  sections.affected = sections.affected.slice(0, PLAN_APPROVAL_AFFECTED_MAX_ITEMS);
-  sections.verification = sections.verification.slice(0, PLAN_APPROVAL_VERIFICATION_MAX_ITEMS);
+  let routineCount = 0;
+  let approachOmitted = 0;
+  sections.approach = sections.approach.filter((item) => {
+    // Converted table rows retain every field, including choices after the
+    // first column. They must not be treated as expendable routine steps.
+    if (item.includes("; ")) return true;
+    if (++routineCount <= PLAN_APPROVAL_APPROACH_MAX_ITEMS) return true;
+    approachOmitted += 1;
+    return false;
+  });
 
-  const renderSection = (section: DecisionSection, emptyText: string): string[] => {
+  const renderSection = (section: DecisionSection): string[] => {
     const items = sections[section];
-    return [`${DECISION_SECTION_LABELS[section]}:`, ...(items.length ? items.map((item) => `- ${item}`) : [`- ${emptyText}`])];
+    return items.length ? [`${DECISION_SECTION_LABELS[section]}: ${items[0]}`, ...items.slice(1).map((item) => `- ${item}`)] : [];
   };
 
   const detailNotes: string[] = [];
   if (approachOmitted > 0) detailNotes.push(`${approachOmitted} additional routine implementation step(s)`);
-  if (affectedOmitted > 0) detailNotes.push(`${affectedOmitted} additional affected-item detail(s)`);
-  if (verificationOmitted > 0) detailNotes.push(`${verificationOmitted} additional verification detail(s)`);
   if (!args.artifact) detailNotes.push("a version-matched structured plan artifact was unavailable; this brief uses the available plan preview");
   if (unclassifiedCount > PLAN_APPROVAL_APPROACH_MAX_ITEMS) detailNotes.push("unclassified plan detail was compacted into the implementation section");
 
+  const detailAction = args.detailRef && /^[a-zA-Z0-9_-]+$/.test(args.detailRef)
+    ? `Inspect available full output before deciding: /agent_output ${args.detailRef} --full. Request the complete plan if it is unavailable there.`
+    : "To inspect these details before deciding, reply asking for the complete plan for this version.";
+
   return [
-    ...renderSection("objective", "Not clearly specified in the available plan text."),
+    ...renderSection("objective"),
     "",
-    ...renderSection("approach", "No concrete implementation steps were identified."),
+    ...renderSection("approach"),
     "",
-    ...renderSection("affected", "No specific files, components, or external systems were identified."),
+    ...renderSection("affected"),
     "",
-    ...renderSection("verification", "No verification steps were specified."),
+    ...renderSection("verification"),
     "",
-    ...renderSection("effects", "No destructive or external effect was identified in the plan text."),
+    ...renderSection("effects"),
     "",
-    ...renderSection("risks", "No material risk was identified in the plan text."),
+    ...renderSection("risks"),
     "",
-    ...renderSection("unknowns", "No explicit unknown or user decision was identified in the plan text."),
+    ...renderSection("unknowns"),
+    "",
+    ...renderSection("costs"),
+    "",
+    ...renderSection("rollback"),
     ...(detailNotes.length > 0 ? [
       "",
       "Full-plan detail:",
-      `- This decision brief does not show ${detailNotes.join("; ")}. Choose Revise and request the complete plan before approving if those details could change your decision.`,
+      `- ${detailNotes.join("; ")}. ${detailAction}`,
     ] : []),
-  ].join("\n");
+  ].join("\n").replace(/\n{3,}/g, "\n\n").trim() || "Plan context: No concrete plan content was available. Request the complete plan before deciding.";
 }
 
 export function formatPlanApprovalSummary(summary: string): string {
-  return summary.trim();
+  const result: string[] = [];
+  let heading: string | undefined;
+  for (const line of normalizePlanLines(summary)) {
+    if (isHeading(line)) {
+      heading = stripPlanLinePrefix(line).replace(/:$/, "");
+    } else if (line.trim()) {
+      result.push(heading ? `${heading}: ${stripPlanLinePrefix(line)}` : line);
+      heading = undefined;
+    } else if (!heading && result.length) {
+      result.push("");
+    }
+  }
+  return result.join("\n").trim();
 }
 
 function splitLongLine(text: string, maxChars: number): string[] {
@@ -174,34 +243,33 @@ function splitLongLine(text: string, maxChars: number): string[] {
 }
 
 function splitPlanBodyIntoChunks(text: string, maxChars: number): string[] {
+  // Keep heading chains with the first body item, even for oversized items.
   const lines = text.split("\n");
+  const units: string[] = [];
+  let headings: string[] = [];
+  for (const line of lines) {
+    if (isHeading(line.trim()) || line.trim() === "Decision brief") {
+      headings.push(line);
+    } else if (line.trim()) {
+      units.push([...headings, line].join("\n"));
+      headings = [];
+    } else if (!headings.length && units.length) {
+      units[units.length - 1] += "\n";
+    }
+  }
   const chunks: string[] = [];
   let current = "";
-
   const pushCurrent = (): void => {
-    if (current.trim().length > 0) {
-      chunks.push(current.trimEnd());
-      current = "";
-    }
+    if (current.trim()) chunks.push(current.trim());
+    current = "";
   };
-
-  for (const line of lines) {
-    if (line.length > maxChars) {
-      pushCurrent();
-      for (const part of splitLongLine(line, maxChars)) {
-        chunks.push(part);
-      }
-      continue;
+  for (const unit of units) {
+    const parts = unit.length > maxChars ? splitLongLine(unit, maxChars) : [unit];
+    for (const part of parts) {
+      const candidate = current ? `${current}\n${part}` : part;
+      if (candidate.length > maxChars) pushCurrent();
+      current = current ? `${current}\n${part}` : part;
     }
-
-    const candidate = current.length > 0 ? `${current}\n${line}` : line;
-    if (candidate.length > maxChars) {
-      pushCurrent();
-      current = line;
-      continue;
-    }
-
-    current = candidate;
   }
 
   pushCurrent();
@@ -241,11 +309,7 @@ function buildChunkedFullPlanMessages(args: {
     const bodyChunks = splitPlanBodyIntoChunks(fullPlanText, chunkBodyMaxChars);
     const messages = bodyChunks.map((body, index) => {
       const total = bodyChunks.length;
-      const header = [
-        `📋 [${displaySessionName}] Plan v${actionableVersion ?? "?"} ${heading} (${index + 1}/${total}):`,
-        "",
-        index === 0 ? "Full plan:" : "",
-      ].filter(Boolean).join("\n");
+      const header = `📋 [${displaySessionName}] Plan v${actionableVersion ?? "?"} ${heading} (${index + 1}/${total})`;
       const footer = buildPlanApprovalFooter(hasButtons, index === total - 1);
 
       return `${header}\n${body}${footer}`;
@@ -288,11 +352,12 @@ export function buildPlanApprovalPromptContent(args: {
   const { sessionName, actionableVersion, preview, artifact, hasButtons, escalationRationale } = args;
   const heading = args.heading ?? "ready for approval";
   const displaySessionName = formatPlanApprovalSessionName(sessionName);
-  const planSummary = buildDecisionGradePlanSummary({ preview, artifact });
-  const reviewSummary = escalationRationale?.trim()
-    ? `Why this was escalated:\n${escalationRationale.trim()}\n\nDecision brief:\n${planSummary}`
-    : `Decision brief:\n${planSummary}`;
-  const singleMessage = `📋 [${displaySessionName}] Plan v${actionableVersion ?? "?"} ${heading}:\n\n${reviewSummary}\n\n${hasButtons ? "Choose Approve, Revise, or Reject below." : "Approval is still pending for this plan version."}`;
+  const planSummary = buildDecisionGradePlanSummary({ preview, artifact, detailRef: sessionName });
+  const rationale = formatPlanApprovalSummary(escalationRationale ?? "");
+  const reviewSummary = rationale
+    ? `Why this was escalated: ${rationale}\n\nDecision brief\n${planSummary}`
+    : `Decision brief\n${planSummary}`;
+  const singleMessage = `📋 [${displaySessionName}] Plan v${actionableVersion ?? "?"} ${heading}\n\n${reviewSummary}\n\n${hasButtons ? "Choose Approve, Revise, or Reject below." : "Approval is still pending for this plan version."}`;
   if (singleMessage.length > PLAN_APPROVAL_FULL_PLAN_MAX_CHARS) {
     return {
       displayMode: "chunked-summary",
