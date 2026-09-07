@@ -1,4 +1,4 @@
-import { assertBranchName, branchNameValidationError } from "../worktree-ref-validation";
+import { assertBranchName, branchNameValidationError, localBranchRef } from "../worktree-ref-validation";
 import { Type } from "../tool-schema";
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
@@ -114,7 +114,7 @@ function moveBranchFastForward(repoDir: string, targetBranch: string, sourceRef:
     if (targetWorktreePath) {
       execFileSync(
         "git",
-        ["-C", targetWorktreePath, "merge", "--ff-only", sourceRef],
+        ["-C", targetWorktreePath, "merge", "--ff-only", localBranchRef(sourceRef)],
         { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       );
       return { success: true, branchName: targetBranch, alreadyRepresented: false };
@@ -124,13 +124,13 @@ function moveBranchFastForward(repoDir: string, targetBranch: string, sourceRef:
     if (currentBranch === targetBranch) {
       execFileSync(
         "git",
-        ["-C", repoDir, "merge", "--ff-only", sourceRef],
+        ["-C", repoDir, "merge", "--ff-only", localBranchRef(sourceRef)],
         { timeout: 30_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       );
     } else {
       execFileSync(
         "git",
-        ["-C", repoDir, "branch", "-f", targetBranch, sourceRef],
+        ["-C", repoDir, "branch", "-f", targetBranch, localBranchRef(sourceRef)],
         { timeout: 10_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       );
     }
