@@ -13,14 +13,14 @@ import { makeAgentWorktreeCleanupTool } from "../src/tools/agent-worktree-cleanu
 import { setSessionManager } from "../src/singletons";
 import { prepareSessionBootstrap } from "../src/session-bootstrap";
 
-const invalid: unknown[] = [null, 3, {}, [], "", " main", "main ", "a\nb", "a\0b", "-f", "--exec=touch /tmp/oca-unwanted", "main~1", "main^", "main..other", "main:other", "@{-1}", "@", "a@{1}", "a//b", "/main", "a.lock", "a/.hidden", "main/", "HEAD"];
+const invalid: unknown[] = [null, 3, {}, [], "", " main", "main ", "a\nb", "a\0b", "-f", "--exec=touch /tmp/oca-unwanted", "main~1", "main^", "main..other", "main:other", "@{-1}", "@", "a@{1}", "a//b", "/main", "a.lock", "a/.hidden", "main/", "HEAD", "refs/heads/main", "refs/remotes/origin/main", "refs/tags/v1"];
 
 describe("literal worktree ref boundary", () => {
   afterEach(() => setSessionManager(null as any));
 
   it("rejects options, revision syntax, malformed refs and nonstring runtime input", () => {
     for (const value of invalid) assert.throws(() => assertBranchName(value), /literal Git branch|valid literal/);
-    for (const value of ["main", "feature/security-fix", "release/2026.9", "refs/remotes/origin/main"]) {
+    for (const value of ["main", "feature/security-fix", "release/2026.9"]) {
       assert.equal(branchNameValidationError(value), undefined);
     }
   });

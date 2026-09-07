@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
 
-/** Literal branch/ref names only: never command options or revision expressions. */
+/** Local branch names only: never full refs, command options, or revision expressions. */
 export function branchNameValidationError(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value || value.startsWith("-") || value === "HEAD" || value === "@" || /\s|[\x00-\x1f\x7f]/u.test(value)) {
-    return "Expected a literal Git branch name (not an option or revision expression).";
+  if (typeof value !== "string" || !value || value.startsWith("-") || value.startsWith("refs/") || value === "HEAD" || value === "@" || /\s|[\x00-\x1f\x7f]/u.test(value)) {
+    return "Expected a literal Git branch name (local branch only; not a full ref, option, or revision expression).";
   }
   try {
     // Prefixing the argument prevents option parsing and avoids --branch's @{-n}
