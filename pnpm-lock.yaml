@@ -28,10 +28,10 @@ importers:
     dependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 0.3.251
-        version: 0.3.251(@anthropic-ai/sdk@0.122.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)
+        version: 0.3.251(@anthropic-ai/sdk@0.123.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)
       '@anthropic-ai/sdk':
-        specifier: 0.122.0
-        version: 0.122.0(zod@4.5.4)
+        specifier: 0.123.0
+        version: 0.123.0(zod@4.5.4)
       '@hono/node-server':
         specifier: 2.1.1
         version: 2.1.1(hono@4.12.34)
@@ -144,8 +144,8 @@ packages:
       zod:
         optional: true
 
-  '@anthropic-ai/sdk@0.122.0':
-    resolution: {integrity: sha512-GGPNftt0caaz9MDlmNQGHX8855Ojaduyy5pm9Sm1h7HalCn0cWNb5/bweadJF+4yzbal+QL6ztBa09WAAOzLmQ==}
+  '@anthropic-ai/sdk@0.123.0':
+    resolution: {integrity: sha512-Y9oX9mPNGZClHQOFqrWRk43Srcu/UHuPq3rfxxOq7JgW0gi+lJA2MAOK4Ul3k/+AUrwRWFJvd0tK3oC0Pw25dw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -2019,9 +2019,9 @@ snapshots:
   '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.251':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.3.251(@anthropic-ai/sdk@0.122.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)':
+  '@anthropic-ai/claude-agent-sdk@0.3.251(@anthropic-ai/sdk@0.123.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)':
     dependencies:
-      '@anthropic-ai/sdk': 0.122.0(zod@4.5.4)
+      '@anthropic-ai/sdk': 0.123.0(zod@4.5.4)
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.5.4)
       zod: 4.5.4
     optionalDependencies:
@@ -2041,7 +2041,7 @@ snapshots:
     optionalDependencies:
       zod: 4.4.3
 
-  '@anthropic-ai/sdk@0.122.0(zod@4.5.4)':
+  '@anthropic-ai/sdk@0.123.0(zod@4.5.4)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
