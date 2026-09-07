@@ -1,3 +1,4 @@
+import { assertBranchName } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import { tmpdir } from "os";
@@ -106,6 +107,8 @@ export function hasEnoughWorktreeSpace(repoDir?: string): boolean {
 }
 
 export function branchExists(repoDir: string, branchName: string): boolean {
+  assertBranchName(branchName);
+
   try {
     execFileSync(
       "git",
@@ -120,6 +123,9 @@ export function branchExists(repoDir: string, branchName: string): boolean {
 
 /** Fetch a single branch into a remote-tracking ref without changing a checkout. */
 export function fetchRemoteBranchRef(repoDir: string, branchName: string, remote = "origin"): string | undefined {
+  assertBranchName(branchName);
+  assertBranchName(remote);
+
   const remoteRef = `refs/remotes/${remote}/${branchName}`;
   try {
     execFileSync(
@@ -158,8 +164,11 @@ export function hasEnoughFreeBytes(freeBytes: number): boolean {
 }
 
 export function detectDefaultBranch(repoDir: string): string {
-  const envBranch = process.env.OPENCLAW_WORKTREE_BASE_BRANCH?.trim();
-  if (envBranch) return envBranch;
+  const envBranch = process.env.OPENCLAW_WORKTREE_BASE_BRANCH;
+  if (envBranch !== undefined) {
+    assertBranchName(envBranch);
+    return envBranch;
+  }
 
   try {
     const result = execFileSync(
@@ -168,7 +177,10 @@ export function detectDefaultBranch(repoDir: string): string {
       { timeout: 5_000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     const branch = result.trim().replace(/^origin\//, "");
-    if (branch) return branch;
+    if (branch) {
+      assertBranchName(branch);
+      return branch;
+    }
   } catch {
     // fall through
   }
@@ -215,6 +227,9 @@ export function getBranchName(worktreePath: string): string | undefined {
 }
 
 export function getCommitsAheadCount(repoDir: string, branch: string, base: string): number | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const result = execFileSync(
       "git",
@@ -237,6 +252,9 @@ export function getAheadBehindCounts(
   branch: string,
   base: string,
 ): { ahead: number; behind: number } | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const result = execFileSync(
       "git",
@@ -254,6 +272,9 @@ export function getAheadBehindCounts(
 }
 
 export function isBranchAncestorOfBase(repoDir: string, branch: string, base: string): boolean {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     execFileSync(
       "git",
@@ -267,6 +288,9 @@ export function isBranchAncestorOfBase(repoDir: string, branch: string, base: st
 }
 
 export function wouldMergeBeNoop(repoDir: string, branch: string, base: string): boolean {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const mergedTree = execFileSync(
       "git",
@@ -285,6 +309,8 @@ export function wouldMergeBeNoop(repoDir: string, branch: string, base: string):
 }
 
 export function deleteBranch(repoDir: string, branch: string): boolean {
+  assertBranchName(branch);
+
   try {
     execFileSync(
       "git",

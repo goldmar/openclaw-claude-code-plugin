@@ -1,3 +1,4 @@
+import { assertBranchName } from "./worktree-ref-validation";
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 
@@ -40,6 +41,9 @@ function errorMessage(err: unknown): string {
 }
 
 export function getDiffSummary(repoDir: string, branch: string, base: string): DiffSummary | undefined {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   try {
     const countResult = execFileSync(
       "git",
@@ -102,6 +106,9 @@ export function getDiffSummary(repoDir: string, branch: string, base: string): D
 }
 
 export function pushBranch(repoDir: string, branch: string, remote: string = "origin"): boolean {
+  assertBranchName(branch);
+  assertBranchName(remote);
+
   try {
     execFileSync(
       "git",
@@ -137,6 +144,9 @@ export function mergeBranch(
   strategy: "merge" | "squash" = "merge",
   worktreePath?: string,
 ): MergeResult {
+  assertBranchName(branch);
+  assertBranchName(base);
+
   let stashed = false;
   let stashRef: string | undefined;
   const warnings: string[] = [];

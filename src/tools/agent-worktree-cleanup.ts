@@ -1,3 +1,4 @@
+import { branchNameValidationError } from "../worktree-ref-validation";
 import { Type } from "../tool-schema";
 import type { OpenClawPluginToolContext } from "../types";
 import { sessionManager } from "../singletons";
@@ -33,7 +34,7 @@ export function makeAgentWorktreeCleanupTool(_ctx?: OpenClawPluginToolContext) {
     description: "Manage worktree cleanup with lifecycle-aware safety rules. Use preview_safe to list what Clean all safe would remove, clean_safe to execute it, or preview_all to see both safe and retained sandboxes with kept reasons.",
     parameters: Type.Object({
       workdir: Type.Optional(Type.String({ description: "Restrict cleanup to sessions rooted in this repository" })),
-      base_branch: Type.Optional(Type.String({ description: "Override base branch for lifecycle resolution" })),
+      base_branch: Type.Optional(Type.String({ description: "Override literal Git branch name for lifecycle resolution; options and revision expressions are rejected" })),
       mode: Type.Optional(Type.Union([
         Type.Literal("preview_safe"),
         Type.Literal("clean_safe"),
@@ -53,6 +54,11 @@ export function makeAgentWorktreeCleanupTool(_ctx?: OpenClawPluginToolContext) {
       }
       if (!isAgentWorktreeCleanupParams(params)) {
         return { content: [{ type: "text", text: "Error: Invalid parameters. Expected { workdir?, base_branch?, mode?, dry_run?, session?, dismiss_session? }." }] };
+      }
+
+      if (params.base_branch !== undefined) {
+        const branchError = branchNameValidationError(params.base_branch);
+        if (branchError) return { content: [{ type: "text", text: `Error: ${branchError}` }] };
       }
 
       const sessionRef = params.session;

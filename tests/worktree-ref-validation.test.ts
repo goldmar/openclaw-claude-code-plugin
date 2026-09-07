@@ -1,0 +1,84 @@
+import { afterEach, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { assertBranchName, branchNameValidationError } from "../src/worktree-ref-validation";
+import { branchExists, deleteBranch, fetchRemoteBranchRef, getAheadBehindCounts, getDiffSummary, mergeBranch, pushBranch } from "../src/worktree";
+import { makeAgentLaunchTool } from "../src/tools/agent-launch";
+import { makeAgentMergeTool } from "../src/tools/agent-merge";
+import { makeAgentPrTool } from "../src/tools/agent-pr";
+import { makeAgentWorktreeCleanupTool } from "../src/tools/agent-worktree-cleanup";
+import { setSessionManager } from "../src/singletons";
+import { prepareSessionBootstrap } from "../src/session-bootstrap";
+
+const invalid: unknown[] = [null, 3, {}, [], "", " main", "main ", "a\nb", "a\0b", "-f", "--exec=touch /tmp/oca-unwanted", "main~1", "main^", "main..other", "main:other", "@{-1}", "@", "a@{1}", "a//b", "/main", "a.lock", "a/.hidden", "main/", "HEAD"];
+
+describe("literal worktree ref boundary", () => {
+  afterEach(() => setSessionManager(null as any));
+
+  it("rejects options, revision syntax, malformed refs and nonstring runtime input", () => {
+    for (const value of invalid) assert.throws(() => assertBranchName(value), /literal Git branch|valid literal/);
+    for (const value of ["main", "feature/security-fix", "release/2026.9", "refs/remotes/origin/main"]) {
+      assert.equal(branchNameValidationError(value), undefined);
+    }
+  });
+
+  it("rejects direct tool calls before session resolution or launch", async () => {
+    setSessionManager(new Proxy({}, { get() { throw new Error("session manager must not be reached"); } }) as any);
+    for (const value of invalid) {
+      for (const [tool, params] of [
+        [makeAgentLaunchTool({} as any), { prompt: "test", worktree_base_branch: value }],
+        [makeAgentMergeTool(), { session: "test", base_branch: value }],
+        [makeAgentPrTool(), { session: "test", base_branch: value }],
+        [makeAgentWorktreeCleanupTool(), { base_branch: value }],
+      ] as const) {
+        const result = await tool.execute("test", params);
+        assert.match(result.content[0].text, /Error: Expected/);
+      }
+    }
+  });
+
+  it("blocks unsafe persisted refs at shared helpers before any repository operation", () => {
+    const missingRepo = "/does-not-exist/oca-ref-test";
+    assert.throws(() => mergeBranch(missingRepo, "agent/test", "--exec=touch sentinel"), /literal Git branch/);
+    assert.throws(() => pushBranch(missingRepo, "--all"), /literal Git branch/);
+    assert.throws(() => pushBranch(missingRepo, "main", "--receive-pack=command"), /literal Git branch/);
+    assert.throws(() => fetchRemoteBranchRef(missingRepo, "main:other"), /valid literal/);
+    assert.throws(() => fetchRemoteBranchRef(missingRepo, "main", "--upload-pack=command"), /literal Git branch/);
+    assert.throws(() => branchExists(missingRepo, "--help"), /literal Git branch/);
+    assert.throws(() => deleteBranch(missingRepo, "--all"), /literal Git branch/);
+    assert.throws(() => getDiffSummary(missingRepo, "main", "--output=sentinel"), /literal Git branch/);
+    assert.throws(() => getAheadBehindCounts(missingRepo, "main", "main~1"), /valid literal/);
+    assert.throws(() => prepareSessionBootstrap({ worktreeBaseBranch: "--exec=command" } as any, "test", () => undefined), /literal Git branch/);
+  });
+
+  it("merges a valid slash branch with cwd metacharacters without shell interpretation", () => {
+    const repo = mkdtempSync(join(tmpdir(), "oca-ref-$(literal); space-"));
+    const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    try {
+      git("init", "-b", "main");
+      git("config", "user.name", "Test");
+      git("config", "user.email", "test@example.com");
+      writeFileSync(join(repo, "file"), "base");
+      git("add", "file");
+      git("commit", "-m", "base");
+      git("checkout", "-b", "feature/security-fix");
+      git("branch", "--set-upstream-to=main");
+      writeFileSync(join(repo, "file"), "change");
+      git("commit", "-am", "change");
+      const head = git("rev-parse", "HEAD");
+      // The pre-fix helper runs this as git rebase --exec, creates the marker,
+      // and then reports failure when checkout rejects the bogus base branch.
+      assert.throws(() => mergeBranch(repo, "feature/security-fix", "--exec=touch oca-injection-marker"), /literal Git branch/);
+      assert.equal(existsSync(join(repo, "oca-injection-marker")), false);
+      assert.equal(git("rev-parse", "HEAD"), head);
+      git("checkout", "main");
+      assert.equal(mergeBranch(repo, "feature/security-fix", "main").success, true);
+      assert.equal(git("rev-parse", "main"), head);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+});

@@ -1,3 +1,4 @@
+import { assertBranchName } from "./worktree-ref-validation";
 import { existsSync } from "fs";
 import { getDefaultHarnessName, pluginConfig } from "./config";
 import { pathsReferToSameLocation } from "./path-utils";
@@ -256,6 +257,7 @@ export function prepareSessionBootstrap(
   name: string,
   getPersistedSession: (ref: string) => PersistedSessionInfo | undefined,
 ): Preparation {
+  if (config.worktreeBaseBranch !== undefined) assertBranchName(config.worktreeBaseBranch);
   preserveResumeRoutingContext(config, getPersistedSession);
 
   let {

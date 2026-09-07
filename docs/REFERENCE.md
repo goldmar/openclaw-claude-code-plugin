@@ -395,7 +395,7 @@ Launch a background coding session.
 | `permission_mode` | `default \| plan \| bypassPermissions` | No | Defaults to plugin `permissionMode` |
 | `harness` | `string` | No | Defaults to `defaultHarness` |
 | `worktree_strategy` | `off \| manual \| ask \| delegate \| auto-merge \| auto-pr` | No | Explicit per-launch value wins over plugin default; `auto-pr` attempts PR creation/update automatically |
-| `worktree_base_branch` | `string` | No | Defaults to detected base branch |
+| `worktree_base_branch` | `string` | No | Literal Git branch name; options and revision expressions rejected. Defaults to detected base branch |
 | `worktree_pr_target_repo` | `string` | No | Cross-repo PR target (e.g. `openai/codex`); auto-detected from `upstream` remote if unset |
 
 Example:
@@ -513,7 +513,7 @@ Merge a worktree branch back to base.
 | Parameter | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `session` | `string` | Yes | Must resolve to a session with worktree metadata |
-| `base_branch` | `string` | No | Defaults to detected base branch |
+| `base_branch` | `string` | No | Literal Git branch name; options and revision expressions rejected. Defaults to detected base branch |
 | `strategy` | `merge \| squash` | No | `merge` means rebase-then-fast-forward |
 | `push` | `boolean` | No | Defaults to `false`; set `true` only when you want the merged base branch pushed |
 | `delete_branch` | `boolean` | No | Defaults to `true` |
@@ -531,7 +531,7 @@ Create or update a GitHub PR for a worktree branch.
 | `session` | `string` | Yes | Must resolve to a session with worktree metadata |
 | `title` | `string` | No | Auto-generated if omitted |
 | `body` | `string` | No | Auto-generated if omitted |
-| `base_branch` | `string` | No | Defaults to detected base branch |
+| `base_branch` | `string` | No | Literal Git branch name; options and revision expressions rejected. Defaults to detected base branch |
 | `force_new` | `boolean` | No | Reject instead of updating an existing PR |
 
 The PR path pushes the worktree branch on demand, then handles open, merged, and closed PR states instead of blindly creating duplicates. When session metadata already points at an open PR, `agent_pr` treats that PR's head branch as authoritative; a follow-up/helper worktree branch is fast-forwarded into the original PR branch when safe, and divergent branches are rejected instead of creating a sibling PR. Newly created agent-authored worktree PRs are opened as GitHub draft PRs by default so a human can review before marking them ready. Existing open PR updates preserve the PR's current draft/ready state.
@@ -562,7 +562,7 @@ Clean managed worktree lifecycle state safely, or dismiss one pending worktree d
 | Parameter | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `workdir` | `string` | No | Repository to inspect |
-| `base_branch` | `string` | No | Defaults to detected base branch |
+| `base_branch` | `string` | No | Literal Git branch name; options and revision expressions rejected. Defaults to detected base branch |
 | `mode` | `preview_safe \| clean_safe \| preview_all` | No | Defaults to `preview_safe` when `dry_run=true`, otherwise `clean_safe` |
 | `skip_session_check` | `boolean` | No | Deprecated; safe cleanup still never removes live sessions |
 | `force` | `boolean` | No | Deprecated alias for `skip_session_check` |

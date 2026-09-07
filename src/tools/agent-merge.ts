@@ -1,3 +1,4 @@
+import { branchNameValidationError } from "../worktree-ref-validation";
 import { Type } from "../tool-schema";
 import { existsSync } from "fs";
 import { getDefaultHarnessName } from "../config";
@@ -123,7 +124,7 @@ export function makeAgentMergeTool(_ctx?: OpenClawPluginToolContext) {
     description: "Merge a worktree branch back to the base branch. Resolves session (active or persisted), gets worktree path, and performs the merge. On conflict, spawns a conflict-resolver session using the configured default harness.",
     parameters: Type.Object({
       session: Type.String({ description: "Session name or ID to merge" }),
-      base_branch: Type.Optional(Type.String({ description: "Base branch to merge into (default: main)" })),
+      base_branch: Type.Optional(Type.String({ description: "Literal Git branch name to merge into; options and revision expressions are rejected (default: main)" })),
       strategy: Type.Optional(
         Type.Union([Type.Literal("merge"), Type.Literal("squash")], {
           description: "Merge strategy: 'merge' (default, fast-forward if possible; merge commit if branches have diverged) or 'squash' (squashes all commits into one)",
@@ -138,6 +139,11 @@ export function makeAgentMergeTool(_ctx?: OpenClawPluginToolContext) {
       }
       if (!isAgentMergeParams(params)) {
         return { content: [{ type: "text", text: "Error: Invalid parameters. Expected { session, base_branch?, strategy?, push?, delete_branch? }." }] };
+      }
+
+      if (params.base_branch !== undefined) {
+        const branchError = branchNameValidationError(params.base_branch);
+        if (branchError) return { content: [{ type: "text", text: `Error: ${branchError}` }] };
       }
 
       // Resolve session (active or persisted)
