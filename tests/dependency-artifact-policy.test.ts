@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { validateNpmShrinkwrap } from "../scripts/check-npm-shrinkwrap.mjs";
 
 const repoRoot = join(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(join(repoRoot, path), "utf8");
@@ -24,5 +26,22 @@ describe("dependency artifact policy", () => {
 
     assert.match(lockfile, /openclaw:\n\s+specifier: 2026\.9\.3\n\s+version: 2026\.9\.3/);
     assert.match(lockfile, /'@openclaw\/ai@2026\.9\.3':/);
+  });
+
+  it("rejects generated shrinkwrap engine metadata that drifts from package.json", (t) => {
+    const fixtureDir = mkdtempSync(join(tmpdir(), "oca-shrinkwrap-engine-drift-"));
+    t.after(() => rmSync(fixtureDir, { recursive: true, force: true }));
+    const packageJson = JSON.parse(read("package.json")) as Record<string, unknown>;
+    const shrinkwrap = JSON.parse(read("npm-shrinkwrap.json")) as {
+      packages: Record<string, { engines?: Record<string, string> }>;
+    };
+    shrinkwrap.packages[""].engines = { node: ">=24.0.0" };
+    writeFileSync(join(fixtureDir, "package.json"), JSON.stringify(packageJson));
+    writeFileSync(join(fixtureDir, "npm-shrinkwrap.json"), JSON.stringify(shrinkwrap));
+
+    assert.throws(
+      () => validateNpmShrinkwrap(fixtureDir),
+      /root engines do not exactly match package\.json/u,
+    );
   });
 });
