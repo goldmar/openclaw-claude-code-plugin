@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = dirname(dirname(scriptPath));
-const defaultOpenClawTargetVersion = "2026.9.2";
+const defaultOpenClawTargetVersion = "2026.9.3";
 const defaultOpenClawCompatibilityFloor = "2026.8.1";
 const exactOpenClawVersionPattern = /^\d{4}\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u;
 
@@ -32,6 +32,7 @@ export function loadReleaseMetadata(baseDir = rootDir) {
     openclawInstall: packageJson.openclaw?.install,
     openclawCompat: packageJson.openclaw?.compat,
     openclawPeerVersion: packageJson.peerDependencies?.openclaw,
+    nodeEngine: packageJson.engines?.node,
   };
 }
 
@@ -55,6 +56,7 @@ export function validateReleaseMetadata(options = {}) {
     openclawInstall,
     openclawCompat,
     openclawPeerVersion,
+    nodeEngine,
   } = loadReleaseMetadata(baseDir);
 
   if (pluginName !== "Code Agent") {
@@ -133,6 +135,12 @@ export function validateReleaseMetadata(options = {}) {
     );
   }
 
+  if (nodeEngine !== ">=24.16.0 <25 || >=26.1.0") {
+    throw new Error(
+      `Node engine mismatch: expected >=24.16.0 <25 || >=26.1.0, got ${nodeEngine}`,
+    );
+  }
+
   const packageJson = JSON.parse(readFileSync(join(baseDir, "package.json"), "utf8"));
   const changelog = readFileSync(join(baseDir, "CHANGELOG.md"), "utf8");
   const lockfile = readFileSync(join(baseDir, "pnpm-lock.yaml"), "utf8");
@@ -169,6 +177,7 @@ export function validateReleaseMetadata(options = {}) {
     openclawInstall,
     openclawCompat,
     openclawPeerVersion,
+    nodeEngine,
   };
 }
 
@@ -187,10 +196,11 @@ function runCli() {
     openclawInstall,
     openclawCompat,
     openclawPeerVersion,
+    nodeEngine,
   } = validateReleaseMetadata({ releaseVersion, openclawTargetVersion });
   const releaseLabel = releaseVersion ? ` against release ${releaseVersion}` : "";
   console.log(
-    `Release metadata validated${releaseLabel}: package.json=${packageVersion}, openclaw.plugin.json=${pluginVersion}, openclaw.plugin.name=${pluginName}, openclawVersion=${openclawVersion}, pluginSdkVersion=${pluginSdkVersion}, openclaw.install.npmSpec=${openclawInstall.npmSpec}, openclaw.install.defaultChoice=${openclawInstall.defaultChoice}, openclaw.install.minHostVersion=${openclawInstall.minHostVersion}, openclaw.compat.pluginApi=${openclawCompat.pluginApi}, openclaw.compat.minGatewayVersion=${openclawCompat.minGatewayVersion}, peerDependencies.openclaw=${openclawPeerVersion}`,
+    `Release metadata validated${releaseLabel}: package.json=${packageVersion}, openclaw.plugin.json=${pluginVersion}, openclaw.plugin.name=${pluginName}, openclawVersion=${openclawVersion}, pluginSdkVersion=${pluginSdkVersion}, openclaw.install.npmSpec=${openclawInstall.npmSpec}, openclaw.install.defaultChoice=${openclawInstall.defaultChoice}, openclaw.install.minHostVersion=${openclawInstall.minHostVersion}, openclaw.compat.pluginApi=${openclawCompat.pluginApi}, openclaw.compat.minGatewayVersion=${openclawCompat.minGatewayVersion}, peerDependencies.openclaw=${openclawPeerVersion}, engines.node=${nodeEngine}`,
   );
 }
 

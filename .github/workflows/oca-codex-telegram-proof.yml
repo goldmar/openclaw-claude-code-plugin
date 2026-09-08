@@ -42,7 +42,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  NODE_VERSION: "22"
+  NODE_VERSION: "24.16.0"
   OCA_CODEX_PROOF_OUTPUT_DIR: .artifacts/qa-e2e/oca-codex-telegram
 
 jobs:
