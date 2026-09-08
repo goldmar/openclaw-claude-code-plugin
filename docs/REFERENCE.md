@@ -28,13 +28,20 @@ Sessions are multi-turn. Active sessions accept follow-up messages via `agent_re
 
 Current releases treat persisted session storage as new-schema-only. If startup finds an older or invalid session store, the plugin archives it to a timestamped `.legacy-*.json` backup and starts with a fresh index instead of migrating rows in place.
 
-### OpenClaw 2026.9.2 SDK Readiness
+### OpenClaw 2026.9.3 SDK Readiness
 
-The current `openclaw-code-agent` package requires, is built against, and is validated against OpenClaw `2026.9.2`. Package installation therefore requires `2026.9.2`, while plugin API, Gateway, and peer dependency metadata retain the verified `2026.8.1` compatibility floor.
+The current `openclaw-code-agent` package requires, is built against, and is validated against OpenClaw `2026.9.3`. Package installation therefore requires `2026.9.3` and Node `>=24.16.0 <25 || >=26.1.0`, while plugin API, Gateway, and peer dependency metadata retain the verified `2026.8.1` compatibility floor.
 
 No host config migration is performed by this package. No new SDK imports are needed: runtime code still imports only `openclaw/plugin-sdk/plugin-entry`, `openclaw.plugin.json` declares tools through `contracts.tools`, pnpm build policy and overrides remain in `pnpm-workspace.yaml`, and code-agent session storage remains plugin-owned. Current Start Plan and approval callbacks, Telegram/topic routing, completion and cron/session wakes, Codex and Claude model restrictions, runtime tool visibility, disabled bundled-plugin boundaries, and plan/worktree follow-through retain their existing contracts.
 
-Configuration guidance for the `2026.9.2` installation target and retained `2026.8.1` API compatibility floor:
+Configuration guidance for the `2026.9.3` installation target and retained `2026.8.1` API compatibility floor:
+
+- OpenClaw `2026.9.3` removes Node 22 and 25 support. Run Code Agent with Node 24.16.0+ or Node 26.1.0+; the package and its release gates enforce the same runtime contract.
+- OpenClaw moved or removed several experimental Plugin SDK helpers, but Code Agent does not import those surfaces. Its sole SDK import remains `openclaw/plugin-sdk/plugin-entry`; do not add compatibility aliases for APIs the plugin does not consume.
+- OpenClaw `2026.9.3` makes queued input, completed output, successful tool results, final delivery, scheduled delivery intent, and recovered outcomes more durable across retries, disconnects, compaction, and Gateway restarts. Code Agent still requires its own non-empty routed wake result before clearing pending completion delivery, and duplicate recovery must remain idempotent.
+- Telegram albums and concurrent forum-topic activity now retain independent topic/reply targeting. Code Agent continues to treat its stored route and thread id as authoritative for Start Plan, approval, question, completion, merge, and PR callbacks.
+- Managed worktree preparation and cold Codex worker startup are more strongly serialized. Code Agent retains repository-policy enforcement and its `delegate`, `ask`, `manual`, `auto-merge`, and `auto-pr` follow-through state; host readiness is not permission to merge or publish.
+- Workshop skills are agent-owned in OpenClaw `2026.9.3`. Code Agent planning and worktree flows must not assume permission to mutate workspace-owned skill locations or use retired symlink-write configuration.
 
 - OpenClaw now explicitly marks public Plugin SDK contracts experimental. Pin and test the host build target when preparing plugin releases; the lower API/peer floor does not override the managed-install minimum. This plugin does not use the deprecated untrusted-named prompt-context aliases or require the new experimental plugin UI/capability-catalog surfaces.
 - OpenClaw `2026.9.2` defaults `tools.sessions.visibility` to `all` and enables ordinary agent-to-agent access. For narrower persona access, explicitly set visibility to `agent` or `self`, constrain `tools.agentToAgent.allow`, or set `tools.agentToAgent.enabled: false`. These are operator choices, not settings this package changes.
@@ -68,7 +75,7 @@ Configuration guidance for the `2026.9.2` installation target and retained `2026
 - Installed plugins that register host-trusted pre-tool policies must declare `contracts.trustedToolPolicies`. This plugin does not register trusted pre-tool policies, so no manifest contract is needed beyond the existing `contracts.tools` list.
 - The removed upstream sender-owner tool gating path does not replace this plugin's auth boundary. Chat commands remain auth-required, and Telegram/Discord callbacks still require authorized senders before `agent_respond`, plan approval, merge, PR, cleanup, or Start Plan actions are applied. OpenClaw's plugin write ownership checks are host-side package safety checks; OCA should not claim ownership of host or adjacent plugin package writes.
 - Legacy `defaultModel`, `model`, `reasoningEffort`, and global `allowedModels` are compatibility fields only. New configs should not use them.
-- Managed external-plugin installs enforce `openclaw.install.minHostVersion`; this package sets that installation boundary to its exact OpenClaw `2026.9.2` build target. Its plugin API range, Gateway minimum, and peer dependency retain the verified OpenClaw `2026.8.1` floor. Keep `openclaw.extensions` pointing at the built `dist/index.js` artifact.
+- Managed external-plugin installs enforce `openclaw.install.minHostVersion`; this package sets that installation boundary to its exact OpenClaw `2026.9.3` build target. Its plugin API range, Gateway minimum, and peer dependency retain the verified OpenClaw `2026.8.1` floor. Keep `openclaw.extensions` pointing at the built `dist/index.js` artifact.
 - OpenClaw `2026.7.1` removes built-in dangerous-code blocking from plugin installs and deprecates `--dangerously-force-unsafe-install`; operators who require a host-specific allow/block decision should configure `security.installPolicy`. OCA's release smoke installs only its freshly packed artifact under an isolated temporary home and does not read or migrate operator state.
 - `tools.deny` does not disable OpenClaw's `apply_patch` tool by itself in current OpenClaw. To restrict patch edits, configure OpenClaw `tools.exec.applyPatch.enabled`, `tools.exec.applyPatch.workspaceOnly`, or `tools.exec.applyPatch.allowModels`.
 

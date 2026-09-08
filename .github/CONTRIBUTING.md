@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ## Prerequisites
 
-- **Node.js** 22.22.3+ (Node 22) or another version supported by the pinned OpenClaw SDK
+- **Node.js** 24.16.0+ on Node 24 or 26.1.0+ on Node 26, matching the pinned OpenClaw SDK
 - **pnpm** 10+ — install with `npm install -g pnpm`
 
 ---
@@ -54,7 +54,7 @@ Every PR must pass `pnpm verify` locally and in CI. The current automated checks
 
 | Check | Command | Notes |
 |-------|---------|-------|
-| Verify | `pnpm verify` | Canonical typecheck + build + test gate on Node 22.22.3 |
+| Verify | `pnpm verify` | Canonical typecheck + build + test gate on Node 24.16.0 and 26.1.0 |
 | Bundle size | — | Complete `dist/` bundle must be <= 600 KB |
 | Lockfile integrity | — | `pnpm-lock.yaml` must be in sync with `package.json` |
 
@@ -116,7 +116,7 @@ git push origin --delete agent/<session-id>
 
 Releases are handled only through a manual dispatch of the `release.yml` GitHub Actions workflow. Supply the version without a leading `v` and the full `main` commit SHA to release.
 
-The workflow verifies that the selected commit belongs to `main`, runs the full CI and security gates on Node.js 22.22.3, validates package/plugin/changelog/lockfile metadata, and packs one artifact. The protected publish job then uses Node.js 24 and GitHub OIDC to publish that exact tarball to npm and ClawHub, create or verify the immutable `v<version>` tag, and create or update the matching GitHub release. Safe retries verify existing artifact digests before skipping a registry or release upload.
+The workflow verifies that the selected commit belongs to `main`, runs the full CI and security gates on Node.js 24.16.0, validates package/plugin/changelog/lockfile metadata, and packs one artifact. The protected publish job uses the same supported Node baseline and GitHub OIDC to publish that exact tarball to npm and ClawHub, create or verify the immutable `v<version>` tag, and create or update the matching GitHub release. Safe retries verify existing artifact digests before skipping a registry or release upload.
 
 Both registry trust relationships must match:
 
