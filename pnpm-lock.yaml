@@ -34,7 +34,7 @@ importers:
         version: 0.123.0(zod@4.5.4)
       '@hono/node-server':
         specifier: 2.1.1
-        version: 2.1.1(hono@4.12.34)
+        version: 2.1.1(hono@4.13.5)
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@4.5.4)
@@ -45,8 +45,8 @@ importers:
         specifier: 3.1.7
         version: 3.1.7
       hono:
-        specifier: 4.12.34
-        version: 4.12.34
+        specifier: 4.13.5
+        version: 4.13.5
       ip-address:
         specifier: 10.7.0
         version: 10.7.0
@@ -1268,6 +1268,10 @@ packages:
     resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
+  hono@4.13.5:
+    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
+    engines: {node: '>=16.9.0'}
+
   hosted-git-info@10.1.1:
     resolution: {integrity: sha512-DeOnSPAvOndYKfw075gt8yZzQ7S2hNztw34zBTfhIzLhmBTswIBg5/y+pqu/VD5cYWm5goAFTusDmUEmKZ0PEQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
@@ -2192,9 +2196,9 @@ snapshots:
     dependencies:
       hono: 4.12.34
 
-  '@hono/node-server@2.1.1(hono@4.12.34)':
+  '@hono/node-server@2.1.1(hono@4.13.5)':
     dependencies:
-      hono: 4.12.34
+      hono: 4.13.5
 
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
@@ -3035,6 +3039,8 @@ snapshots:
   highlight.js@11.12.0: {}
 
   hono@4.12.34: {}
+
+  hono@4.13.5: {}
 
   hosted-git-info@10.1.1:
     dependencies:
