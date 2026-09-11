@@ -1,4 +1,4 @@
-import { appendReasoningToStatus, formatReasoningSuffix } from "./session-display";
+import { appendStatusMetadata, formatReasoningMetadataSuffix } from "./session-display";
 import { createHash } from "crypto";
 import type { PersistedSessionInfo } from "./types";
 import { WakeDispatcher, type SessionNotificationHooks, type SessionNotificationRequest } from "./wake-dispatcher";
@@ -319,22 +319,24 @@ export class SessionNotificationService {
 
     // All plugin-owned visible session headings pass through here, including
     // approval pages/fallbacks, progress, manual messages and worktree outcomes.
-    // Routing-only proxies recover metadata from the saved session, never config.
-    const metadata = "model" in session ? session : persistedSession;
-    const reasoningSuffix = formatReasoningSuffix({
-      harness: metadata && ("harnessName" in metadata ? metadata.harnessName : metadata.harness),
-      model: metadata?.model,
-      reasoningEffort: metadata?.reasoningEffort,
+    // Add model + reasoning as one atomic unit: an orphan reasoning level is
+    // ambiguous and must never be displayed. Routing-only/recovered targets use
+    // persisted effective metadata, never mutable current configuration.
+    const sessionHarness = "harnessName" in session ? session.harnessName : session.harness;
+    const metadataSuffix = formatReasoningMetadataSuffix({
+      harness: sessionHarness ?? persistedSession?.harness,
+      model: session.model ?? persistedSession?.model,
+      reasoningEffort: session.reasoningEffort ?? persistedSession?.reasoningEffort,
     });
     this.wakeDispatcher.dispatchSessionNotification(session as Session, {
       ...dispatchRequest,
       userMessage: dispatchRequest.userMessage === undefined ? undefined
-        : appendReasoningToStatus(dispatchRequest.userMessage, reasoningSuffix),
+        : appendStatusMetadata(dispatchRequest.userMessage, metadataSuffix),
       userMessages: dispatchRequest.userMessages?.map((message, index) => ({
         ...message,
         // Continuation bodies are not status lines; plan pages have their own heading.
         text: index === 0 || message.text.startsWith("📋 [")
-          ? appendReasoningToStatus(message.text, reasoningSuffix) : message.text,
+          ? appendStatusMetadata(message.text, metadataSuffix) : message.text,
       })),
       idempotencyKey: notificationDedupeKey ?? dispatchRequest.idempotencyKey,
       shouldDispatch,

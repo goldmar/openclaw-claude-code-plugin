@@ -21,10 +21,28 @@ export function formatHarnessModelSuffix(input: {
   return label ? ` | ${label}` : "";
 }
 
+/**
+ * Metadata added to lifecycle headings is atomic: reasoning is useful only when
+ * the exact model that consumes it is visible beside it. Existing renderers
+ * that intentionally show harness/model without reasoning should continue to
+ * use formatHarnessModelLabel/formatHarnessModelSuffix.
+ */
+export function formatReasoningMetadataSuffix(input: {
+  harness?: string;
+  model?: string;
+  reasoningEffort?: ReasoningEffort;
+}): string {
+  const harness = input.harness?.trim();
+  const model = input.model?.trim();
+  const reasoning = formatReasoningSuffix(input);
+  if (!harness || !model || !reasoning) return "";
+  return ` | ${harness} | ${model}${reasoning}`;
+}
+
 /** Only describe a known setting on a model/harness that consumes named effort.
  * Never consult current plugin defaults while rendering historical sessions.
  */
-export function formatReasoningSuffix(input: {
+function formatReasoningSuffix(input: {
   harness?: string;
   model?: string;
   reasoningEffort?: ReasoningEffort;
@@ -56,8 +74,16 @@ export function formatReasoningSuffix(input: {
   return ` | reasoning: ${effort}`;
 }
 
+export function hasDisplayableReasoning(input: {
+  harness?: string;
+  model?: string;
+  reasoningEffort?: ReasoningEffort;
+}): boolean {
+  return Boolean(formatReasoningSuffix(input));
+}
+
 /** Enrich only the heading, leaving message bodies, URLs and markup intact. */
-export function appendReasoningToStatus(text: string, suffix: string): string {
+export function appendStatusMetadata(text: string, suffix: string): string {
   if (!text || !suffix) return text;
   const newline = text.indexOf("\n");
   const heading = newline < 0 ? text : text.slice(0, newline);
