@@ -1,4 +1,4 @@
-import { formatReasoningSuffix } from "./session-display";
+import { hasDisplayableReasoning } from "./session-display";
 import type {
   PlanApprovalMode,
   PermissionMode,
@@ -72,7 +72,7 @@ export function formatLaunchSummary(input: LaunchSummaryInput): string {
     `  Prompt: "${summarizePrompt(input.prompt)}"`,
   ];
 
-  if (formatReasoningSuffix(input)) {
+  if (hasDisplayableReasoning(input)) {
     details.push(`  Reasoning effort: ${input.reasoningEffort}`);
   }
   if (input.fastMode) {

@@ -12,7 +12,7 @@ import { SessionStore } from "../src/session-store";
 import { SessionNotificationService } from "../src/session-notifications";
 import { SessionRuntimeBootstrapService } from "../src/session-runtime-bootstrap-service";
 import { SessionWorktreeMessageService } from "../src/session-worktree-message-service";
-import { formatHarnessModelLabel, formatReasoningSuffix } from "../src/session-display";
+import { formatHarnessModelLabel, formatReasoningMetadataSuffix } from "../src/session-display";
 import { buildCompletedPayload, buildFailedPayload, buildTurnCompletePayload, buildWaitingForInputPayload } from "../src/session-notification-builder";
 import { resolveAgentLaunchRequest } from "../src/tools/agent-launch-resolution";
 import { resolveWorktreeToolTarget } from "../src/tools/worktree-tool-context";
@@ -20,6 +20,16 @@ import { makeAgentLaunchTool } from "../src/tools/agent-launch";
 import { setSessionManager } from "../src/singletons";
 import type { SessionNotificationRequest } from "../src/wake-dispatcher";
 import type { PersistedSessionInfo, ReasoningEffort } from "../src/types";
+
+const LIFECYCLE_NOTIFICATION_VARIANTS = [
+  "launch", "resumed-launch", "progress", "running", "completed", "failed", "cancelled",
+  "suspended", "recovered", "restart", "resume", "fork", "notification", "agent-respond",
+  "plan-submitted", "plan-approval", "plan-approved", "plan-revised", "plan-rejected",
+  "plan-approval-timeout", "permission-prompt", "decision-prompt", "worktree-manual",
+  "worktree-no-change", "worktree-dirty", "worktree-merge-failed", "worktree-cleaned",
+  "pr-opened", "pr-updated", "pr-merged", "goal-task-started", "goal-task-progress",
+  "goal-task-failed", "goal-task-succeeded",
+] as const;
 
 function makeSession(reasoningEffort?: ReasoningEffort): Session {
   return new Session({
@@ -63,7 +73,8 @@ describe("notification reasoning visibility", () => {
     { harness: "claude-code", model: "claude-opus-4-5-20251101", reasoningEffort: "max" },
   ]) {
     it(`omits unknown/unsupported settings: ${JSON.stringify(input)}`, () => {
-      assert.equal(formatReasoningSuffix(input as any), "");
+      assert.doesNotMatch(formatHarnessModelLabel(input as any) ?? "", /reasoning:/);
+      assert.equal(formatReasoningMetadataSuffix(input as any), "");
     });
   }
 
@@ -81,6 +92,17 @@ describe("notification reasoning visibility", () => {
       assert.equal(formatHarnessModelLabel({ harness, model, reasoningEffort: effort as ReasoningEffort }),
         `${harness} | ${model} | reasoning: ${effort}`);
     }
+  });
+
+  it("treats lifecycle model and reasoning metadata as an atomic display unit", () => {
+    assert.equal(formatReasoningMetadataSuffix({
+      harness: "codex", model: "gpt-5.6-sol", reasoningEffort: "high",
+    }), " | codex | gpt-5.6-sol | reasoning: high");
+    assert.equal(formatReasoningMetadataSuffix({ harness: "codex", reasoningEffort: "high" }), "");
+    assert.equal(formatReasoningMetadataSuffix({ model: "gpt-5.6-sol", reasoningEffort: "high" }), "");
+    assert.equal(formatReasoningMetadataSuffix({
+      harness: "codex", model: "custom-model", reasoningEffort: "high",
+    }), "");
   });
 
   for (const resumed of [false, true]) {
@@ -111,19 +133,19 @@ describe("notification reasoning visibility", () => {
     });
   }
 
-  it("covers approval, progress, stopped, manual and worktree headings without changing bodies or buttons", () => {
+  it("covers every shared lifecycle notification variant without changing bodies or buttons", () => {
     const session = makeSession("high");
     const { service, requests } = recorder();
     const buttons = [[{ label: "Approve", callbackData: "unchanged-token" }]];
-    for (const label of ["progress", "suspended", "notification", "agent-respond", "worktree-manual", "worktree-merge-failed", "plan-approval-timeout"]) {
+    for (const label of LIFECYCLE_NOTIFICATION_VARIANTS) {
       service.dispatch(session, { label, userMessage: `📋 [reasoning-test] ${label}\n\n**Keep markup** https://example.com/pr/1`, buttons });
       const request = requests.at(-1)!;
-      assert.equal(request.userMessage, `📋 [reasoning-test] ${label} | reasoning: high\n\n**Keep markup** https://example.com/pr/1`);
+      assert.equal(request.userMessage, `📋 [reasoning-test] ${label} | codex | gpt-6-astra | reasoning: high\n\n**Keep markup** https://example.com/pr/1`);
       assert.equal(request.buttons, buttons);
     }
     const payload = buildWaitingForInputPayload({ session, preview: "Question?", originThreadLine: "" });
     service.dispatch(session, payload);
-    assert.match(requests.at(-1)!.userMessage!, /Question waiting for reply: \| reasoning: high\n/);
+    assert.match(requests.at(-1)!.userMessage!, /Question waiting for reply: \| codex \| gpt-6-astra \| reasoning: high\n/);
     service.dispatch(session, {
       label: "plan-approval", userMessages: [
         { text: "📋 [reasoning-test] Plan (1/2):\nBody one", requiredForSequenceSuccess: true },
@@ -141,6 +163,20 @@ describe("notification reasoning visibility", () => {
       session, nativeBackendWorktree: false, cleanupSucceeded: true, worktreePath: "/tmp/wt", preview: "Done",
     });
     assert.match(noChange.userMessage!, /reasoning: high$/);
+  });
+
+  it("never emits orphan reasoning when model metadata is unavailable", () => {
+    const { service, requests } = recorder();
+    const modelUnavailable = { id: "missing-model", harnessName: "codex", reasoningEffort: "high" } as any;
+    for (const label of LIFECYCLE_NOTIFICATION_VARIANTS) {
+      service.dispatch(modelUnavailable, {
+        label: `missing-model-${label}`,
+        userMessage: `📋 [missing-model] ${label}`,
+      });
+    }
+    for (const request of requests) {
+      assert.doesNotMatch(request.userMessage!, /reasoning:/);
+    }
   });
 
   it("round-trips running/terminal settings and restores manual PR/merge metadata without consulting new defaults", () => {
