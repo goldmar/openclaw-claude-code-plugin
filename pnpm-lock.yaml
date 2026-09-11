@@ -67,8 +67,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.1
       openclaw:
-        specifier: 2026.9.3
-        version: 2026.9.3
+        specifier: 2026.9.4
+        version: 2026.9.4
       tsx:
         specifier: ^4.21.0
         version: 4.23.13
@@ -511,8 +511,8 @@ packages:
     resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
     engines: {node: '>=14.0.0'}
 
-  '@openclaw/ai@2026.9.3':
-    resolution: {integrity: sha512-nJLVeQwmmu2RHihHl1j0OYtSzFC8SZIYol6cf1g9PDI/y5eTm0m2muWoGCFtRitftwx+vuWN6LkKZfjWViCU4w==}
+  '@openclaw/ai@2026.9.4':
+    resolution: {integrity: sha512-OglePy7EiejsiMy2cqq4lGHijdt3RP29Phi90CdispR/h/k85hpYgC8/8kFPUgkxgy7i65gYELzrhai03D37pg==}
     engines: {node: '>=22.19.0'}
 
   '@openclaw/fs-safe-darwin-arm64@0.8.5':
@@ -565,8 +565,8 @@ packages:
     resolution: {integrity: sha512-MAuWVgZ+DZhakzfrbyn2NOKsZop3ES2ITeVCoAaDNb/NIxF45hAzYDXmp2G8W10CE/HGasL97QMC0+iBZNzHUQ==}
     engines: {node: '>=22'}
 
-  '@openclaw/proxyline@0.3.11':
-    resolution: {integrity: sha512-XDlrrQE0fapfTpqCBK9WB+U4W+/0lsrRIXI2nZ74W/lWMF+X4T5t2dfj8Ms250Th4qjnNi6WuSX5OZJqyLoZ3g==}
+  '@openclaw/proxyline@0.3.12':
+    resolution: {integrity: sha512-KPUvtLgORF0NWxiuUPwHBuxYhUsFgxnOm8+XkDR0on236lnfMF44A5BnOvBkeDV8wrBaGHs/rQ8kt1tB4WNhmw==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
       undici: 8.9.0
@@ -1544,8 +1544,8 @@ packages:
       zod:
         optional: true
 
-  openclaw@2026.9.3:
-    resolution: {integrity: sha512-CzDHMeHdnjlIZ76ZyBb1lvLO4H/yBIMYXupFGGBN87x0853y3hg5nLAnKfxSKqLzqhbUKqy9ebDRAWWV4t8aew==}
+  openclaw@2026.9.4:
+    resolution: {integrity: sha512-lTQpEEe1Xm3u2PCHaPEr+vP8paGk1vLdHuzdItsNToaLI6hAqRVvgJYg+GxukJhETJp4tPy/S1Gftl4KuB8n7A==}
     engines: {node: '>=24.16.0 <25 || >=26.1.0'}
     hasBin: true
 
@@ -1614,10 +1614,6 @@ packages:
   pngjs@5.0.0:
     resolution: {integrity: sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==}
     engines: {node: '>=10.13.0'}
-
-  pretty-ms@9.3.0:
-    resolution: {integrity: sha512-gjVS5hOP+M3wMm5nmNOucbIrqudzs9v/57bWRHQWLYklXqoXKrVfYW2W9+glfGsqtPgpiz5WwyEEB+ksXIx3gQ==}
-    engines: {node: '>=18'}
 
   pretty-ms@9.3.1:
     resolution: {integrity: sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA==}
@@ -2328,7 +2324,7 @@ snapshots:
 
   '@mozilla/readability@0.6.0': {}
 
-  '@openclaw/ai@2026.9.3(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
+  '@openclaw/ai@2026.9.4(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.120.0(zod@4.4.3)
       '@google/genai': 2.19.0(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))
@@ -2384,7 +2380,7 @@ snapshots:
       '@openclaw/fs-safe-win32-x64-msvc': 0.8.5
       jszip: 3.10.1
 
-  '@openclaw/proxyline@0.3.11(undici@8.10.2)':
+  '@openclaw/proxyline@0.3.12(undici@8.10.2)':
     dependencies:
       undici: 8.10.2
 
@@ -2846,7 +2842,7 @@ snapshots:
       is-plain-obj: 4.1.0
       is-stream: 4.0.1
       npm-run-path: 6.0.0
-      pretty-ms: 9.3.0
+      pretty-ms: 9.3.1
       signal-exit: 4.1.0
       strip-final-newline: 4.0.0
       which-command: 0.1.0
@@ -3266,7 +3262,7 @@ snapshots:
       ws: 8.21.3
       zod: 4.4.3
 
-  openclaw@2026.9.3:
+  openclaw@2026.9.4:
     dependencies:
       '@agentclientprotocol/sdk': 1.4.0(zod@4.4.3)
       '@anthropic-ai/sdk': 0.120.0(zod@4.4.3)
@@ -3281,9 +3277,9 @@ snapshots:
       '@mistralai/mistralai': 2.6.4
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
       '@mozilla/readability': 0.6.0
-      '@openclaw/ai': 2026.9.3(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
+      '@openclaw/ai': 2026.9.4(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
       '@openclaw/fs-safe': 0.8.5
-      '@openclaw/proxyline': 0.3.11(undici@8.10.2)
+      '@openclaw/proxyline': 0.3.12(undici@8.10.2)
       '@silvia-odwyer/photon-node': 0.3.4
       '@trycua/cua-driver': 0.22.2
       acorn: 8.18.0
@@ -3393,10 +3389,6 @@ snapshots:
   playwright-core@1.62.1: {}
 
   pngjs@5.0.0: {}
-
-  pretty-ms@9.3.0:
-    dependencies:
-      parse-ms: 4.0.0
 
   pretty-ms@9.3.1:
     dependencies:
